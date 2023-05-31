@@ -15,7 +15,7 @@ library(Boruta) #random forest models
 
 #Read in data-------------------------------------------------------------------
 library(readr)
-c <- read_csv("Dissertation Data/climate_physical - Apple Processing .csv")
+c <- read_csv("climate_physical - Apple Processing .csv")
 View(c)
 
 ##restructure data by converting to numeric values 
@@ -42,6 +42,8 @@ m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/onum), data=c)
 summary(m4)
 Anova(m4)#orchard.type p=0.851
 
+###within all of the orchards mgmt system alone doesnt have an effect on fruti physical traits 
+
 ###aggregating data for averages 
 aggregate(SSC~orchard.type, data=c, FUN=mean)
 # Conventional 10.88182
@@ -61,9 +63,10 @@ aggregate(maturity.index~orchard.type, data=c, FUN=mean)
 
 
 ###running glmm analysis on phys traits and proxy climate 
-##site code and orchard number tested as random effects 
+###proxy climate factors are Latitude, elevation, and Longitude 
+###site code and orchard number tested as random effects 
 
-#SSC
+###SSC###
 s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/onum), data=c)
 summary(s1)
 Anova(s1)
@@ -78,7 +81,15 @@ Anova(s2)
 #orchard.type p=0.2849
 #elevation:orchard.type p=0.6719
 
-#Firmness 
+s3<- glmmTMB(SSC ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+summary(s3)
+Anova(s3)
+#Longitutde              0.5870  1     0.4436
+#orchard.type            0.9519  1     0.3292
+#Longitutde:orchard.type 0.0287  1     0.8656
+
+
+###Firmness###
 f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/onum), data=c)
 summary(f1)
 Anova(f1)
@@ -93,7 +104,16 @@ Anova(f2)
 #orchard.type p=0.9686
 #elevation:orchard.type p=0.6368.
 
-#Average Weight (weight of 3 apples minus the bag divided by 3)
+f3<- glmmTMB(Firmness ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+summary(f3)
+Anova(f3)
+
+#Longitutde              0.2882  1     0.5914
+#orchard.type            0.0030  1     0.9563
+#Longitutde:orchard.type 1.8458  1     0.1743
+
+
+###Average Weight (weight of 3 apples minus the bag divided by 3)###
 w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/onum), data=c)
 summary(w1)
 Anova(w1)
@@ -130,6 +150,13 @@ Anova(mt2)
 #elevation p=0.5632
 #orchard.type p=0.8615
 #elevation:orchard.type p=0.4549
+
+mt3<- glmmTMB(maturity.index ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+summary(mt3)
+Anova(mt3)
+
+#NaNs 
+
 
 #correlation matrix-------------------------------------------------------------
 ###running a correlation matrix to see various relationships between independent and dependent variabel 
