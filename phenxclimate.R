@@ -60,13 +60,13 @@ row.names(d.comp.sk) <- d.sk$Orchard.num
 d.expl.sk <- d.sk[,1:14]
 row.names(d.expl.sk) <- d.sk$Orchard.num
 
-d.comp.pu <- d.pu[,15:36]
+d.comp.pu <- d.pu[,15:34]
 row.names(d.comp.pu) <- d.pu$Orchard.num
 
 d.expl.pu <- d.pu[,1:14]
 row.names(d.expl.pu) <- d.pu$Orchard.num
 
-d.comp.se <- d.se[,15:36]
+d.comp.se <- d.se[,15:33]
 row.names(d.comp.se) <- d.se$Orchard.num
 
 d.expl.se <- d.se[,1:14]
@@ -362,9 +362,8 @@ m1.rf.b.sk <- Boruta(d.comp.sk,d.expl.sk$orchard.type)
 m1.rf.b.sk
 #plot 
 plot(m1.rf.b.sk)  
-#important variables: quercetin 
 getSelectedAttributes(m1.rf.b.sk) #lists all important ones
-#procyanidin B1" "syringic acid"  "epicatechin"   
+#"pb1"         "syr.acid"    "epicatechin"
 
 #performing MANOVA 
 d.comp.sk.sel <- data.matrix(d.comp.sk[,getSelectedAttributes(m1.rf.b.sk)])
@@ -374,7 +373,7 @@ summary(m1.man.sk)
 
 #follow-up ANOVAs for each individual compound
 summary.aov(m1.man.sk)  
-#pb1 = 0.06155 .
+#pb1 = 0.3935
 
 #some quick plots of all of them
 par(mfrow=c(3,3))
@@ -395,17 +394,17 @@ MDSplot(m1.rf.pu, d.expl.pu$orchard.type)
 m1.rf.b.pu <- Boruta(d.comp.pu,d.expl.pu$orchard.type)
 m1.rf.b.pu
 plot(m1.rf.b.pu)  
-#important variables: coumaric and reyonutrin 
+#important variables: chl.acid, PhenRich, TotalPhen, U1
 #lists all important ones
 getSelectedAttributes(m1.rf.b.pu) 
-#phloridzin
+#"chl.acid"  "U1"
 
 ##Running MANOVAS 
 d.comp.pu.sel <- data.matrix(d.comp.pu[,getSelectedAttributes(m1.rf.b.pu)])
 m1.man.pu <- manova(d.comp.pu.sel ~ d.expl.pu$orchard.type) #doesnt work for some reason 
 summary(m1.man.pu)  #overall significance for MANOVA
 summary.aov(m1.man.pu)  #follow-up ANOVAs for each individual compound
-
+#0.9745
 
 #some quick plots of all of them
 par(mfrow=c(3,3))
@@ -429,15 +428,13 @@ m1.rf.b.se <- Boruta(d.comp.se,d.expl.se$orchard.type)
 m1.rf.b.se
 plot(m1.rf.b.se)  #important variables (better than shadow) are in green
 getSelectedAttributes(m1.rf.b.se) #lists all important ones
-#"gentistic acid" "procyanidin B2" "syringic acid"  "epicatechin"    "reynoutrin"  
-
+#pb2"        "syr.acid"   "reynoutrin" "U2"         "PhenRich" 
 #Running MANOVAS 
 d.comp.se.sel <- data.matrix(d.comp.se[,getSelectedAttributes(m1.rf.b.se)])
 m1.man.se <- manova(d.comp.se.sel ~ d.expl.se$orchard.type)
 summary(m1.man.se)  #overall significance for MANOVA
-#P= 0.0008877 ***
 summary.aov(m1.man.se)  
-
+#p=0.02016 *
 
 par(mfrow=c(3,3))
 for (i in 1:length(colnames(d.comp.se.sel))){
