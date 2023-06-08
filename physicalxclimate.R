@@ -15,34 +15,29 @@ library(Boruta) #random forest models
 
 #Read in data-------------------------------------------------------------------
 library(readr)
-c <- read_csv("climate_physical - Apple Processing .csv")
+c <- read_csv("climate_physical.csv")
 View(c)
 
-##restructure data by converting to numeric values 
-c$site.code <- as.numeric(as.factor(c$site.code))
-c$orchard.type <- as.numeric(as.factor(c$orchard.type))
+#How do management systems interact with broad abiotic conditions to shape fruit quality
+#mgmt and phys traits-----------------------------------------------------------
 
-#How do management systems interact with broad abiotic conditions to shape fruit quality--------------
-
-###running glmm analysis on phys traits and mgmt system
-##site code and orchard number tested as random effects 
-m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/onum), data=c)
+m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/onum/Tree), data=c)
 summary(m1)
 Anova(m1) #orchard.type p=0.294
 
-m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/onum), data=c)
+m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/onum/Tree), data=c)
 summary(m2)
 Anova(m2)#orchard.type p=0.9851
 
-m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/onum), data=c)
+m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/onum/Tree), data=c)
 summary(m3)
-Anova(m3)#orchard.type p=0.8485
+Anova(m3)#orchard.type p=0.8997
 
 m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/onum), data=c)
 summary(m4)
 Anova(m4)#orchard.type p=0.851
 
-###within all of the orchards mgmt system alone doesnt have an effect on fruti physical traits 
+###within all of the orchards mgmt system alone doesn't have an effect on fruit physical traits 
 
 ###aggregating data for averages 
 aggregate(SSC~orchard.type, data=c, FUN=mean)
@@ -61,27 +56,23 @@ aggregate(maturity.index~orchard.type, data=c, FUN=mean)
 # Conventional       3.781818
 #    Organic       4.138462
 
-
-###running glmm analysis on phys traits and proxy climate 
-###proxy climate factors are Latitude, elevation, and Longitude 
-###site code and orchard number tested as random effects 
-
+###proxy climate and mgmt-------------------------------------------------------
 ###SSC###
-s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/onum), data=c)
+s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(s1)
 Anova(s1)
 #Latitude p=1.906e-05 ***
 #orchard.type p=0.4788    
 #Latitude:orchard.type p=0.6393  
 
-s2<- glmmTMB(SSC ~ elevation*orchard.type + (1|site.code/onum), data=c)
+s2<- glmmTMB(SSC ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(s2)
 Anova(s2)
 #elevation p=0.1148
 #orchard.type p=0.2849
 #elevation:orchard.type p=0.6719
 
-s3<- glmmTMB(SSC ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+s3<- glmmTMB(SSC ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(s3)
 Anova(s3)
 #Longitutde              0.5870  1     0.4436
@@ -90,21 +81,21 @@ Anova(s3)
 
 
 ###Firmness###
-f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/onum), data=c)
+f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(f1)
 Anova(f1)
 #Latitude p=4.112e-09 ***
 #orchard.type p=0.7735    
 #Latitude:orchard.type p=0.3366 
 
-f2<- glmmTMB(Firmness ~ elevation*orchard.type + (1|site.code/onum), data=c)
+f2<- glmmTMB(Firmness ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(f2)
 Anova(f2)
 #elevation p=0.1808
 #orchard.type p=0.9686
-#elevation:orchard.type p=0.6368.
+#elevation:orchard.type p=0.6368
 
-f3<- glmmTMB(Firmness ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+f3<- glmmTMB(Firmness ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(f3)
 Anova(f3)
 
@@ -114,21 +105,21 @@ Anova(f3)
 
 
 ###Average Weight (weight of 3 apples minus the bag divided by 3)###
-w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/onum), data=c)
+w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(w1)
 Anova(w1)
 #Latitude p=0.570994   
 #orchard.type p=0.716308   
 #Latitude:orchard.type p=0.001643 ** 
 
-w2<- glmmTMB(avgwgt ~ elevation*orchard.type + (1|site.code/onum), data=c)
+w2<- glmmTMB(avgwgt ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(w2)
 Anova(w2)
 #elevation p=0.005707 **
 #orchard.type p=0.465530   
 #elevation:orchard.type p=0.087329 .
 
-w3<- glmmTMB(avgwgt ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+w3<- glmmTMB(avgwgt ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(w3)
 Anova(w3)
 #Longitude p=0.3660
@@ -137,46 +128,26 @@ Anova(w3)
 
 
 #Maturity  
-mt1 <- glmmTMB(maturity.index ~ Latitude*orchard.type + (1|site.code/onum), data=c)
+mt1 <- glmmTMB(maturity.index ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(mt1)
 Anova(mt1)
 #Latitude p=0.0489 *
 #orchard.type p=0.9454  
 #Latitude:orchard.type p=0.3272 
 
-mt2<- glmmTMB(maturity.index ~ elevation*orchard.type + (1|site.code/onum), data=c)
+mt2<- glmmTMB(maturity.index ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(mt2)
 Anova(mt2)
 #elevation p=0.5632
 #orchard.type p=0.8615
 #elevation:orchard.type p=0.4549
 
-mt3<- glmmTMB(maturity.index ~ Longitutde*orchard.type + (1|site.code/onum), data=c)
+mt3<- lm(maturity.index ~ Longitude*orchard.type, data=c)
 summary(mt3)
 Anova(mt3)
-
-#NaNs 
-
-
-#correlation matrix-------------------------------------------------------------
-###running a correlation matrix to see various relationships between independent and dependent variabel 
-library(corrplot)
-library(Hmisc)
-#creates the correlation matrix 
-c.rcorr = rcorr(as.matrix(c))
-c.rcorr
-#generates p-values between variables 
-c.coeff = c.rcorr$r
-c.p = c.rcorr$P #use this corrplot
-
-#corrplot will show the significance of relationships between variables.
-#look for colored tiles on the dependent variables 
-corrplot(c.p)
-
-##avgwgt: prox water, lat, long, firmness,ssc
-##firmness: avgwgt, total prec, prox water 
-##SSC: long, avgwgt
-##Maturity Index: otype, prox water 
+#Longitude                6.807   1  4.5859 0.03433 *
+#orchard.type             2.193   1  1.4777 0.22661  
+#Longitude:orchard.type   0.157   1  0.1055 0.74589 
 
 
 #Which abiotic factors are the most important drivers of fruit quality?----
@@ -331,6 +302,102 @@ library(car)
 c[12:16]
 ##plotting elationships 
 scatterplotMatrix(c[12:16])
+
+
+
+
+
+#Which specific management practices are the most important drivers of fruit chemistry and quality?------
+
+names(c)
+
+##pest pressure## 
+pest1 <- glmmTMB(SSC ~ Pest_Index*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(pest1)
+Anova(pest1)
+#Pest_Index:orchard.type 2.9152  1    0.08775 .
+
+pest2 <- glmmTMB(avgwgt ~ Pest_Index*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(pest2)
+Anova(pest2)
+# none
+
+pest3 <- glmmTMB(Firmness ~ Pest_Index*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(pest3)
+Anova(pest3)
+#none 
+
+pest4 <- glmmTMB(maturity.index ~ Pest_Index*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(pest4)
+Anova(pest4)
+#none 
+
+##Herbicides## 
+herb1 <- glmmTMB(SSC ~ Herbicides*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(herb1)
+Anova(herb1)
+#Herbicides              5.4980  1    0.01904 *
+#orchard.type            2.7336  1    0.09826 .
+#Herbicides:orchard.type 1.2220  1    0.26896  
+
+herb2 <- glmmTMB(avgwgt ~ Herbicides*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(herb2)
+Anova(herb2)
+#none
+
+herb3 <- glmmTMB(Firmness ~ Herbicides*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(herb3)
+Anova(herb3)
+#none 
+
+herb4 <- glmmTMB(maturity.index ~ Herbicides*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(herb4)
+Anova(herb4)
+#none 
+
+
+##Acres## 
+Acres <- glmmTMB(SSC ~ Acres*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(Acres)
+Anova(Acres)
+#none
+
+Acres <- glmmTMB(avgwgt ~ Acres*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(Acres)
+Anova(Acres)
+#Acres              10.8040  1   0.001013 **
+
+Acres <- glmmTMB(Firmness ~ Acres*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(Acres)
+Anova(Acres)
+#none 
+
+Acres <- glmmTMB(maturity.index ~ Acres*orchard.type + (1|site.code/onum/Tree), data=c)
+summary(Acres)
+Anova(Acres)
+#none 
+
+##Mowing## 
+Mowing <- lm(SSC ~ Mowing*orchard.type, data=c)
+summary(Mowing)
+Anova(Mowing)
+#none
+
+Mowing <- lm(avgwgt ~ Mowing*orchard.type, data=c)
+summary(Mowing)
+Anova(Mowing)
+#none 
+
+Mowing <- lm(Firmness ~ Mowing*orchard.type, data=c)
+summary(Mowing)
+Anova(Mowing)
+#none 
+
+Mowing <- lm(maturity.index ~ Mowing*orchard.type, data=c)
+summary(Mowing)
+Anova(Mowing)
+#none 
+
 
 
 
