@@ -26,3 +26,8 @@ physicalxclimate.R
 Added analysis for question 3: Which specific management practices are the most important drivers of fruit chemistry and quality?
 - created a pest pressure index
 - started looking at how physical traits effect each other in regards to mgmt type 
+
+
+phenolics
+-re-processed some chromatograms
+-re-ran some samples

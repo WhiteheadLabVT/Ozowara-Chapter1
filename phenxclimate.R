@@ -4,7 +4,6 @@ rm(list=ls()) # clears work space
 library(ggplot2)
 library(MASS)
 library(reshape2)
-library(tidyverse)
 library(dplyr)
 library(randomForest)
 library(glmmTMB) #mixed models
@@ -52,6 +51,7 @@ d.comp.pu <- d.pu[,17:37]
 d.expl.pu <- d.pu[,c(1:15, 36:37)]
 d.comp.se <- d.se[,17:37]
 d.expl.se <- d.se[,c(1:15, 37:38)]
+
 
 
 #How do phenol differ across tissue types and mgmt systems----------------------
