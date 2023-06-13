@@ -15,3 +15,14 @@ I went back through and added two unknown compounds that had high peak areas and
 were present in almost every chromatogram. I also realized that I messed up the 
 calculations by not factoring in standard curves during the ppm portion. I've run total 
 phenolics and richness with the proxy climate factors. 
+
+
+
+06/01-06/13
+-created master sheet with all survey, physical, and chemical data 
+
+
+physicalxclimate.R
+Added analysis for question 3: Which specific management practices are the most important drivers of fruit chemistry and quality?
+- created a pest pressure index
+- started looking at how physical traits effect each other in regards to mgmt type 

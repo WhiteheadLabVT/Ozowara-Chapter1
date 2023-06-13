@@ -14,116 +14,99 @@ library(Boruta) #random forest models
 
 #Data organization--------------------------------------------------------------
 library(readr)
-d <- read_csv("phenol_updated - Sheet1.csv")
+d <- read_csv("phenol_clim - Sheet1.csv")
 View(d)
 
 ##restructure data 
 d <- d %>%
-  mutate(TotalPhen=rowSums(across(where(is.numeric) & !TCA)),
-         PhenRich=rowSums(across(where(is.numeric) & !TCA & !TotalPhen)!=0))
+  mutate(TotalPhen=rowSums(across(17:38)),
+         PhenRich=rowSums(across(17:38)!=0))
+
 d <- d %>% 
-  mutate_at(c("Tree", "Tissue", "orchard.type"), as.factor)
-view(d)
+  mutate_at(10:15, as.factor)
+View(d)
 
-#convert into numeric frames 
-d$site.code <- d$site.code %>% as.factor() %>% as.numeric()
-d$orchard.type <- d$orchard.type %>% as.factor() %>% as.numeric()
-
-#Divide by tissue type, for some analyses we will want to look at them separate
+#seperate by tissue type 
 d.sk <- filter(d, Tissue=="SKIN")
-d.sk <- select(d.sk, -(13+which(colSums(d.sk[14:36], na.rm=TRUE) %in% 0)))
+d.sk <- select(d.sk, -(15+which(colSums(d.sk[17:38], na.rm=TRUE) %in% 0)))
 d.pu <- filter(d, Tissue=="PULP")
-d.pu <- select(d.pu, -(13+which(colSums(d.pu[14:36], na.rm=TRUE) %in% 0)))
+d.pu <- select(d.pu, -(15+which(colSums(d.pu[17:38], na.rm=TRUE) %in% 0)))
 d.se <- filter(d, Tissue=="SEED")
-d.se <- select(d.se, -(13+which(colSums(d.se[14:36], na.rm=TRUE) %in% 0)))
+d.se <- select(d.se, -(15+which(colSums(d.se[17:38], na.rm=TRUE) %in% 0)))
 
 
-#convert ro numeric after creating filters
-d$Tissue <- d$Tissue %>% as.factor() %>% as.numeric()
-d$Tree <- d$Tree %>% as.factor() %>% as.numeric()
-
+d <- as.data.frame(d)
+row.names(d) <- d$SampleID
 
 #For some analyses we need a table with only composition info
 #and one with just explanatory variables
+d.comp <- d[,17:38]
+d.expl <- d[,c(1:15, 39:40)]
 
-d.comp <- d[,15:36]
-row.names(d.comp) <- d$Orchard.num
-
-
-d.expl <- d[,1:14]
-row.names(d.expl) <- d$Orchard_Num
 
 #Also need those by tissue
-d.comp.sk <- d.sk[,15:36]
-row.names(d.comp.sk) <- d.sk$Orchard.num
-
-d.expl.sk <- d.sk[,1:14]
-row.names(d.expl.sk) <- d.sk$Orchard.num
-
-d.comp.pu <- d.pu[,15:34]
-row.names(d.comp.pu) <- d.pu$Orchard.num
-
-d.expl.pu <- d.pu[,1:14]
-row.names(d.expl.pu) <- d.pu$Orchard.num
-
-d.comp.se <- d.se[,15:33]
-row.names(d.comp.se) <- d.se$Orchard.num
-
-d.expl.se <- d.se[,1:14]
-row.names(d.expl.se) <- d.se$Orchard.num
+###fix this 
+d.comp.sk <- d.sk[,17:38]
+d.expl.sk <- d.sk[,c(1:15, 37:38)]
+d.comp.pu <- d.pu[,17:37]
+d.expl.pu <- d.pu[,c(1:15, 36:37)]
+d.comp.se <- d.se[,17:37]
+d.expl.se <- d.se[,c(1:15, 37:38)]
 
 
 #How do phenol differ across tissue types and mgmt systems----------------------
 ###total phenols###
-tp1 <- glmmTMB(TotalPhen~ orchard.type*Tissue + (1|site.code/Orchard.num), data=d)
+tp1 <- glmmTMB(TotalPhen~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d)
 summary(tp1)
 Anova(tp1)
-
-#orchard.type         4.0456  1    0.04429 *  
-#Tissue              91.2389  2    < 2e-16 ***
-#orchard.type:Tissue  4.0761  2    0.13028   
+#orchard.type        8.4285  1   0.003694 **
+#Tissue              4.9692  2   0.083359 . 
+#orchard.type:Tissue 0.3021  2   0.859807 
 
 diagnose(tp1)
 shapiro.test(resid(tp1))
 hist(resid(tp1))
+#residuals not good :(
+
 
 #total p per tissue type 
-tp.p <- lm(TotalPhen ~ orchard.type, data=d.pu)
+tp.p <- glmmTMB(TotalPhen ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.pu, family=beta_family)
 summary(tp.p)
 Anova(tp.p)
 #not sig 
 
-tp.sk <- lm(TotalPhen ~ orchard.type, data=d.sk)
+tp.sk <- glmmTMB(TotalPhen ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.sk)
 summary(tp.sk)
 Anova(tp.sk)
+
 #not sig 
-tp.sd <- lm(TotalPhen ~ orchard.type, data=d.se)
-summary(tp.sd)
-Anova(tp.sd)
-#orchard.type 0.01425 *
+tp.se <- glmmTMB(TotalPhen ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.se)
+summary(tp.se)
+Anova(tp.se)
 
 p2 <- ggplot(d, aes(x=Tissue, y=TotalPhen, color=orchard.type))+
   theme_classic() +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Phenolic Richness") +
+  ylab ("Total Phenolics (ug per g") +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
   scale_x_discrete(labels=c("pulp", "seeds", "skin"))
 p2
 
 
 ###phen rich ###
-pr1 <- glmmTMB(PhenRich~ orchard.type*Tissue + (1|site.code/Orchard.num), data=d)
+pr1 <- glmmTMB(PhenRich~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d)
 summary(pr1)
 Anova(pr1)
 
-#orchard.type           2.2590  1    0.13284    
+#orchard.type           2.2590  1    0.16471    
 #Tissue              1279.1586  2    < 2e-16 ***
-#orchard.type:Tissue    5.4814  2    0.06453 . 
+#orchard.type:Tissue    5.4814  2    0.08499 .   
 
 diagnose(pr1)
 shapiro.test(resid(pr1))
 hist(resid(pr1))
+#= 0.98958, p-value = 0.01156
 
 
 #phen rich per tissue type 
@@ -139,7 +122,7 @@ Anova(pr.sk)
 pr.sd <- lm(PhenRich ~ orchard.type, data=d.se)
 summary(pr.sd)
 Anova(pr.sd)
-#orchard.type 0.02016 *
+#orchard.type 0.02436 *
 
 
 p1 <- ggplot(d, aes(x=Tissue, y=PhenRich, color=orchard.type))+
@@ -287,6 +270,9 @@ Anova(pre1)
 #elevation              14.6850  1  0.0001271 ***
 
 ###corrolation matrix-----------------------------------------------------------
+
+#edit to do a true corrolation matrix with true numeric values 
+
 library(corrplot)
 d.cor = cor(d)
 corrplot(d.cor)
@@ -302,6 +288,7 @@ d.p = d.rcorr$P #use this corroplot
 #look for colored tiles on the dependent variables 
 corrplot(d.p)
 ###theres a lot going on :(
+
 
 
 
@@ -342,6 +329,13 @@ plot(m.NMDS, type="n") #plots the ordination axes only
 points(m.NMDS, pch=d.expl$Symbol,
        col=as.character(d.expl$Color), cex = 0.8)     
 #text(m.NMDS, pos = 4, cex = 0.3, display = "sites")  #if you want to see sample names
+
+
+#PERMANOVA can test whether the visualized differences are significant
+
+m.perm <- adonis2(d.comp~Dom.Status*Tissue, data=d.expl)
+m.perm
+
 
 
 #PERMANOVA can test whether the visualized differences are significant
@@ -444,3 +438,18 @@ for (i in 1:length(colnames(d.comp.se.sel))){
 dev.off()
 
 
+
+#Q1B Which abiotic factors are the most important drivers of fruit chemistry----
+###total phenolics###
+p1<- glmmTMB(TotalPhen ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
+summary(pl)
+anova(p1)
+
+p2<- glmmTMB(TotalPhen ~ Prox.Water*orchard.type + (1|site.code/onum), data=c)
+summary(p2)
+anova(p2)
+
+
+p3<- glmmTMB(TotalPhen ~ Szn.Temp.Avg*orchard.type + (1|site.code/onum), data=c)
+summary(p3)
+anova(p3)

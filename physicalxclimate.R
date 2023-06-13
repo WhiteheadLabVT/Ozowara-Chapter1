@@ -1,4 +1,4 @@
-#physical traits with proxy and fixed climatic variables 
+#mgmt,climate, and physical traits  
 rm(list=ls()) # clears work space
 
 ###install packages-------------------------------------------------------------
@@ -55,6 +55,37 @@ aggregate(avgwgt~orchard.type, data=c, FUN=mean)
 aggregate(maturity.index~orchard.type, data=c, FUN=mean)
 # Conventional       3.781818
 #    Organic       4.138462
+
+
+###traits influence on each other 
+sxf<- glmmTMB( SSC*Firmness~ orchard.type + (1|site.code/onum), data=c)
+summary(sxf)
+Anova(sxf)
+
+sxw<- glmmTMB(SSC*avgwgt~orchard.type + (1|site.code/onum), data=c)
+summary(sxw)
+Anova(sxw)
+
+sxm<- glmmTMB(SSC*maturity.index~orchard.type + (1|site.code/onum), data=c)
+summary(sxm)
+Anova(sxm)
+
+wxf<- glmmTMB(avgwgt*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+summary(wxf)
+Anova(wxf)
+
+
+wxm<- glmmTMB(avgwgt*maturity.index ~orchard.type+ (1|site.code/onum), data=c)
+summary(wxf)
+Anova(wxf)
+
+
+fxm<- glmmTMB(maturity.index*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+summary(fxm)
+Anova(fxm)
+
+
+
 
 ###proxy climate and mgmt-------------------------------------------------------
 ###SSC###
