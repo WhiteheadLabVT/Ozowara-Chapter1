@@ -1,10 +1,13 @@
-#mgmt,climate, and physical traits  
 rm(list=ls()) # clears work space
+
+#notes-------------------------------------------------------------------------- 
+#need to do PCA with mgmt techniques 
 
 ###install packages-------------------------------------------------------------
 library(ggplot2)
 library(MASS)
 library(reshape2)
+library(tidyverse)
 library(tidyverse)
 library(dplyr)
 library(randomForest)
@@ -12,34 +15,243 @@ library(glmmTMB) #mixed models
 library(car) #mixed models summary tables
 library(vegan) #multivariate stats
 library(Boruta) #random forest models
+library("purrr")
 
 #Read in data-------------------------------------------------------------------
 library(readr)
-c <- read_csv("climate_physical.csv")
+chap_all_dat <- read_csv("chap_all_dat.csv")
+View(chap_all_dat)
+
+#were going to alter this table for fruit quality analysis 
+library(readr)
+c <- read_csv("chap_all_dat.csv")
 View(c)
+#filter out variables that we're not going to look at 
+c <- c %>% dplyr::select(-c(26:50 ))
+view(c)
+#remove duplicated rows from the data 
+c <- c %>% distinct()
+view(c)
 
-#How do management systems interact with broad abiotic conditions to shape fruit quality
-#mgmt and phys traits-----------------------------------------------------------
 
-m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/onum/Tree), data=c)
+
+
+#PCA----------------------------------------------------------------------------
+#principle components analysis 
+#first we're just going to look at the climatic variables and their affect
+
+#create practice data set 
+p <- read_csv("chap_all_dat.csv")
+View(p)
+
+#filter out variables that we're not going to look at 
+p <- p %>% dplyr::select(-c(1:13, 26:50 ))
+view(p)
+#remove duplicated rows from the data 
+p <- p %>% distinct()
+view(p)
+
+#calculate principal components
+results <- prcomp(p, scale = TRUE)
+
+#reverse the signs
+results$rotation <- -1*results$rotation
+
+#display principal components
+results$rotation #here we see that PC7 has the highest values for all components 
+
+#reverse the signs of the scores
+#this also saves the scores by orchard number 
+results$x <- -1*results$x
+
+#display the first six scores
+head(results$x)
+#PC2 is the largest (longitude)
+
+
+#this plots the results of the PCAs into a two dimensional representation 
+biplot(results, scale = 0)
+
+
+#calculate total variance explained by each principal component
+results$sdev^2 / sum(results$sdev^2)
+# [1] 4.993391e-01 1.590931e-01 1.245701e-01 7.628088e-02 5.318525e-02 3.992590e-02 2.067177e-02 1.141188e-02
+#[9] 7.588457e-03 4.096733e-03 2.383892e-03 1.452838e-03 7.578747e-08
+
+
+#We can also create a scree plot – a plot that displays the total variance
+#explained by each principal component – to visualize the results of PCA:
+#calculate total variance explained by each principal component
+var_explained = results$sdev^2 / sum(results$sdev^2)
+
+#create scree plot
+qplot(c(1:12), var_explained) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+#pc2 latitude explains the most variance 
+
+
+#second we're just going to look at the mgmt variables and their affect
+
+#create practice data set 
+p2 <- read_csv("chap_all_dat.csv")
+View(p2)
+
+#filter out variables that we're not going to look at 
+p2 <- p2 %>% dplyr::select(-c(1:4, 14:21, 26:50 ))
+#remove duplicated rows from the data 
+p2 <- p2 %>% distinct()
+view(p2)
+
+#calculate principal components
+results <- prcomp(p2, scale = TRUE)
+
+#reverse the signs
+results$rotation <- -1*results$rotation
+
+#display principal components
+results$rotation #here we see that PC9 has the highest values for all components 
+
+#reverse the signs of the scores
+#this also saves the scores by orchard number 
+results$x <- -1*results$x
+
+#display the first six scores
+head(results$x)
+#PC3 is the largest (herbicides)
+
+
+#this plots the results of the PCAs into a two dimensional representation 
+biplot(results, scale = 0)
+
+
+#calculate total variance explained by each principal component
+results$sdev^2 / sum(results$sdev^2)
+# [1] 4.993391e-01 1.590931e-01 1.245701e-01 7.628088e-02 5.318525e-02 3.992590e-02 2.067177e-02 1.141188e-02
+#[9] 7.588457e-03 4.096733e-03 2.383892e-03 1.452838e-03 7.578747e-08
+
+
+#We can also create a scree plot – a plot that displays the total variance
+#explained by each principal component – to visualize the results of PCA:
+#calculate total variance explained by each principal component
+var_explained = results$sdev^2 / sum(results$sdev^2)
+
+#create scree plot
+qplot(c(1:14), var_explained) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+
+#PCR----------------------------------------------------------------------------
+#start with a principle components regression with each response variable (ssc, firm, maturity, wgt)
+#once we find the most significant interactions we can move on for further analysis
+library(pls)
+
+###SSC MODEL###
+#make this example reproducible
+set.seed(1)
+names(p)
+
+#fit PCR model
+#the response variable will be the physical trait measured 
+#predictor variables will be a combo of our fixed and proxy
+model <- pcr(SSC~Latitude+Szn.Temp.Avg+Prox.Water+elevation+Longitutde+
+               Szn.Total.Precip+Szn.Min.Avg+Szn.Max.Avg,
+             data=p, scale=TRUE, validation="CV")
+
+summary(model)
+#intercept is 2.898    
+#drops after one component so we should use 2?
+#variance is 88.74     with three components?
+
+validationplot(model)
+validationplot(model, val.type="MSEP")
+validationplot(model, val.type="R2")
+
+#the model fits with two principle components 
+
+###AVGWGT MODEL###
+#make this example reproducible
+set.seed(1)
+
+#fit PCR model
+#the response variable will be the physical trait measured 
+#predictor variables will be a combo of our fixed and proxy
+model1 <- pcr(avgwgt~Latitude+Szn.Temp.Avg+Prox.Water+elevation+Longitutde+
+                Szn.Total.Precip+Szn.Min.Avg+Szn.Max.Avg,
+              data=p, scale=TRUE, validation="CV")
+
+summary(model1)
+#intercept is 32.49        
+#does not drop off until 4 comps 
+#variance is 88.74 with three components?
+
+validationplot(model1)
+validationplot(model1, val.type="MSEP")
+validationplot(model1, val.type="R2")
+#the model fits with two principle components
+
+
+
+#Correlation Matrix-------------------------------------------------------------
+#we're going to round out looking at the influence of our varibales by creating a,
+#correlation matrix. This will help to pin point which interactions to look at, 
+#during analysis 
+
+#first create a practice data set
+#were going to alter this table for fruit quality analysis 
+p1 <- read_csv("chap_all_dat.csv")
+View(p1)
+#filter out variables that we're not going to look at 
+p1 <- p1 %>% dplyr::select(-c(1:4, 26:50 ))
+#remove duplicated rows from the data 
+p1 <- p1 %>% distinct()
+view(p1)
+
+library(Hmisc)
+#The first matrix shows the correlation coefficients between the variables  
+#the second matrix shows the corresponding p-values.
+rcorr(as.matrix(p1))
+#any value below 0.05 is not a statistically significant relationship 
+# need to sort through and organzie these values 
+
+#now let's visualize this 
+library(corrplot)
+corrplot(cor(p1))
+#red = negative, blue = positive 
+#big = high, small = low
+
+
+#Question 1---------------------------------------------------------------------
+#How do management systems interact with broad antibiotic conditions to shape fruit quality
+#we'll divide this into two parts
+#1: management systems alone
+#2: proxy climatic factors (lat, long, elev)
+
+###part 1### 
+#values currently not correct!
+m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
 summary(m1)
-Anova(m1) #orchard.type p=0.294
+Anova(m1) 
 
-m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/onum/Tree), data=c)
+m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
 summary(m2)
-Anova(m2)#orchard.type p=0.9851
+Anova(m2)
 
-m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/onum/Tree), data=c)
+m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
 summary(m3)
 Anova(m3)#orchard.type p=0.8997
 
-m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/onum), data=c)
+m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
 summary(m4)
-Anova(m4)#orchard.type p=0.851
+Anova(m4)
 
-###within all of the orchards mgmt system alone doesn't have an effect on fruit physical traits 
-
-###aggregating data for averages 
+#aggregate the data so that we have some idea of the differences between orchard types
 aggregate(SSC~orchard.type, data=c, FUN=mean)
 # Conventional 10.88182
 # Organic 11.78462
@@ -56,38 +268,8 @@ aggregate(maturity.index~orchard.type, data=c, FUN=mean)
 # Conventional       3.781818
 #    Organic       4.138462
 
-
-###traits influence on each other 
-sxf<- glmmTMB( SSC*Firmness~ orchard.type + (1|site.code/onum), data=c)
-summary(sxf)
-Anova(sxf)
-
-sxw<- glmmTMB(SSC*avgwgt~orchard.type + (1|site.code/onum), data=c)
-summary(sxw)
-Anova(sxw)
-
-sxm<- glmmTMB(SSC*maturity.index~orchard.type + (1|site.code/onum), data=c)
-summary(sxm)
-Anova(sxm)
-
-wxf<- glmmTMB(avgwgt*Firmness ~orchard.type+ (1|site.code/onum), data=c)
-summary(wxf)
-Anova(wxf)
-
-
-wxm<- glmmTMB(avgwgt*maturity.index ~orchard.type+ (1|site.code/onum), data=c)
-summary(wxf)
-Anova(wxf)
-
-
-fxm<- glmmTMB(maturity.index*Firmness ~orchard.type+ (1|site.code/onum), data=c)
-summary(fxm)
-Anova(fxm)
-
-
-
-
-###proxy climate and mgmt-------------------------------------------------------
+###part 2###
+#values not correct!
 ###SSC###
 s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(s1)
@@ -180,9 +362,108 @@ Anova(mt3)
 #orchard.type             2.193   1  1.4777 0.22661  
 #Longitude:orchard.type   0.157   1  0.1055 0.74589 
 
+###traits influence on each other 
+sxf<- glmmTMB( SSC*Firmness~ orchard.type + (1|site.code/onum), data=c)
+summary(sxf)
+Anova(sxf)
 
-#Which abiotic factors are the most important drivers of fruit quality?----
-####Looking at fixed variables here. Orchard num is nested within site code. Not focused on looking at mgmt systms 
+sxw<- glmmTMB(SSC*avgwgt~orchard.type + (1|site.code/onum), data=c)
+summary(sxw)
+Anova(sxw)
+
+sxm<- glmmTMB(SSC*maturity.index~orchard.type + (1|site.code/onum), data=c)
+summary(sxm)
+Anova(sxm)
+
+wxf<- glmmTMB(avgwgt*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+summary(wxf)
+Anova(wxf)
+
+
+wxm<- glmmTMB(avgwgt*maturity.index ~orchard.type+ (1|site.code/onum), data=c)
+summary(wxf)
+Anova(wxf)
+
+
+fxm<- glmmTMB(maturity.index*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+summary(fxm)
+Anova(fxm)
+
+
+#Question 1 Figures---------------------------------------------------------------
+###mgmt and physcial quality alone 
+b1 <- ggplot(c, aes(x=orchard.type, y=SSC, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("SOLUBLE SUGAE CONTENT") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+b1
+
+b2 <- ggplot(c, aes(x=orchard.type, y
+                    =Firmness, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness (N)") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+b2
+
+b3 <- ggplot(c, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Apple Weight (g)") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+b3
+
+b4 <- ggplot(c, aes(x=orchard.type, y=maturity.index, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Maturity Index") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+b4
+
+multiplot(b1,b2,b3,b4, cols=2)
+
+###physical quality, mgmt, and proxy climatic variables 
+
+ssc1 = ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+ssc1
+
+
+ssc2 = ggplot(c, aes(x=elevation, y=SSC, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+ssc2
+
+
+avgwgt1 = ggplot(c, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("Average Weight (g)") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+avgwgt1
+
+#Question 2---------------------------------------------------------------------
+#Which abiotic factors are the most important drivers of fruit quality?
 #total precipitation x otype 
 pl1<- glmmTMB(SSC ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
 summary(pl1)
@@ -326,20 +607,10 @@ Anova(sm4)
 #Szn.Min.Avg              2.5495  1     0.1103
 #orchard.type:Szn.Min.Avg 1.0085  1     0.3153
 
+#Question 2 Figures ------------------------------------------------------------
 
-#Composite variable analysis----------------------------------------------------
-library(car)
-##looking at composite varibales 
-c[12:16]
-##plotting elationships 
-scatterplotMatrix(c[12:16])
-
-
-
-
-
-#Which specific management practices are the most important drivers of fruit chemistry and quality?------
-
+#Question 3---------------------------------------------------------------------
+#Which specific management practices are the most important drivers of fruit quality?
 names(c)
 
 ##pest pressure## 
@@ -429,7 +700,52 @@ summary(Mowing)
 Anova(Mowing)
 #none 
 
+#Question 3 Figures-------------------------------------------------------------
 
 
 
-
+#Multiple plot function----------------------------------------------------------------------------------------------
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}

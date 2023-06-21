@@ -31,3 +31,12 @@ Added analysis for question 3: Which specific management practices are the most 
 phenolics
 -re-processed some chromatograms
 -re-ran some samples
+
+06/14-06/25
+physicalxlcimate 
+- Added a PCA  analysis for climatic variables and one for mgmt varaibles. 
+- did a principle components regression but cant figure out how excatly to interpret the   results 
+- Restructured analysis for all three questions
+- using the master data sheet, I tried to play around with reading in 3 csv and 
+combining them but it gave me the same results as if I had just put everything into
+one large sheet 
