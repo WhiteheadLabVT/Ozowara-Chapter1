@@ -40,3 +40,10 @@ physicalxlcimate
 - using the master data sheet, I tried to play around with reading in 3 csv and 
 combining them but it gave me the same results as if I had just put everything into
 one large sheet 
+
+
+06/27
+physicalxlcimate
+-with comments went and started working three seperate data sheets at each collection leevel:
+ochard, tree, fruit
+
