@@ -1,8 +1,5 @@
 rm(list=ls()) # clears work space
 
-#notes-------------------------------------------------------------------------- 
-#need to do PCA with mgmt techniques 
-
 ###install packages-------------------------------------------------------------
 library(ggplot2)
 library(MASS)
@@ -19,51 +16,48 @@ library("purrr")
 
 #Read in data-------------------------------------------------------------------
 library(readr)
-chap_all_dat <- read_csv("chap_all_dat.csv")
-View(chap_all_dat)
-
-#were going to alter this table for fruit quality analysis 
+Tree <- read_csv("Tree Level Data.csv")
+View(Tree)
+names(Tree)
 library(readr)
-c <- read_csv("chap_all_dat.csv")
-View(c)
-#filter out variables that we're not going to look at 
-c <- c %>% dplyr::select(-c(26:50 ))
+Orchard <- read_csv("Orchard Level Data.csv")
+View(Orchard)
+names(Orchard)
+
+Tree <- Tree %>%
+  group_by(orchard.num) %>%
+  summarise_at(c("apple.wgt.3", "Firmness", "SSC", "maturity.index", "bag.weight"), mean, na.rm = TRUE)
+
+c <- left_join(Tree, Orchard, by="orchard.num")
+
+c <-c[-25,]
+
+c <- c %>%
+  mutate(avgwgt=(c$apple.wgt.3-c$bag.weight)/3)
+
 view(c)
-#remove duplicated rows from the data 
-c <- c %>% distinct()
-view(c)
-
-
-
-
 #PCA----------------------------------------------------------------------------
 #principle components analysis 
 #first we're just going to look at the climatic variables and their affect
 
 #create practice data set 
-p <- read_csv("chap_all_dat.csv")
-View(p)
+p <- c
+view(p)
+names(p)
 
-#filter out variables that we're not going to look at 
-p <- p %>% dplyr::select(-c(1:13, 26:50 ))
-view(p)
-#remove duplicated rows from the data 
-p <- p %>% distinct()
-view(p)
+p_qual <- dplyr::select(p, c("avgwgt", "Firmness", "SSC", "maturity.index"))
+p_clim <- dplyr::select(p,c("Prox.Water", "Longitude","Latitude","elevation"))  
 
 #calculate principal components
-results <- prcomp(p, scale = TRUE)
+results <- prcomp(p_clim, scale = TRUE)
 
-#reverse the signs
-results$rotation <- -1*results$rotation
+#this gives you the % variance explained
+summary(results)  
 
 #display principal components
-results$rotation #here we see that PC7 has the highest values for all components 
+results$x
 
-#reverse the signs of the scores
-#this also saves the scores by orchard number 
-results$x <- -1*results$x
-
+results$rotation
 #display the first six scores
 head(results$x)
 #PC2 is the largest (longitude)
@@ -74,54 +68,37 @@ biplot(results, scale = 0)
 
 
 #calculate total variance explained by each principal component
-results$sdev^2 / sum(results$sdev^2)
-# [1] 4.993391e-01 1.590931e-01 1.245701e-01 7.628088e-02 5.318525e-02 3.992590e-02 2.067177e-02 1.141188e-02
-#[9] 7.588457e-03 4.096733e-03 2.383892e-03 1.452838e-03 7.578747e-08
+summary(results)$importance
+summary(results)$importance[2,]
 
-
-#We can also create a scree plot – a plot that displays the total variance
-#explained by each principal component – to visualize the results of PCA:
-#calculate total variance explained by each principal component
 var_explained = results$sdev^2 / sum(results$sdev^2)
 
+df <- data.frame(PC=1:4, var_explained=var_explained)
+
 #create scree plot
-qplot(c(1:12), var_explained) + 
+ggplot(df, aes(x=PC, y=var_explained)) + 
   geom_line() + 
+  geom_point()+
   xlab("Principal Component") + 
   ylab("Variance Explained") +
   ggtitle("Scree Plot") +
   ylim(0, 1)
-#pc2 latitude explains the most variance 
 
 
-#second we're just going to look at the mgmt variables and their affect
+###Quality###
 
-#create practice data set 
-p2 <- read_csv("chap_all_dat.csv")
-View(p2)
+results <- prcomp(p_qual, scale = TRUE)
 
-#filter out variables that we're not going to look at 
-p2 <- p2 %>% dplyr::select(-c(1:4, 14:21, 26:50 ))
-#remove duplicated rows from the data 
-p2 <- p2 %>% distinct()
-view(p2)
-
-#calculate principal components
-results <- prcomp(p2, scale = TRUE)
-
-#reverse the signs
-results$rotation <- -1*results$rotation
+#this gives you the % variance explained
+summary(results)  
 
 #display principal components
-results$rotation #here we see that PC9 has the highest values for all components 
+results$x
 
-#reverse the signs of the scores
-#this also saves the scores by orchard number 
-results$x <- -1*results$x
-
+results$rotation
 #display the first six scores
 head(results$x)
-#PC3 is the largest (herbicides)
+#PC2 is the largest (longitude)
 
 
 #this plots the results of the PCAs into a two dimensional representation 
@@ -129,88 +106,34 @@ biplot(results, scale = 0)
 
 
 #calculate total variance explained by each principal component
-results$sdev^2 / sum(results$sdev^2)
-# [1] 4.993391e-01 1.590931e-01 1.245701e-01 7.628088e-02 5.318525e-02 3.992590e-02 2.067177e-02 1.141188e-02
-#[9] 7.588457e-03 4.096733e-03 2.383892e-03 1.452838e-03 7.578747e-08
+summary(results)$importance
+summary(results)$importance[2,]
 
-
-#We can also create a scree plot – a plot that displays the total variance
-#explained by each principal component – to visualize the results of PCA:
-#calculate total variance explained by each principal component
 var_explained = results$sdev^2 / sum(results$sdev^2)
 
+df <- data.frame(PC=1:4, var_explained=var_explained)
+
 #create scree plot
-qplot(c(1:14), var_explained) + 
+ggplot(df, aes(x=PC, y=var_explained)) + 
   geom_line() + 
+  geom_point()+
   xlab("Principal Component") + 
   ylab("Variance Explained") +
   ggtitle("Scree Plot") +
   ylim(0, 1)
 
-#PCR----------------------------------------------------------------------------
-#start with a principle components regression with each response variable (ssc, firm, maturity, wgt)
-#once we find the most significant interactions we can move on for further analysis
-library(pls)
-
-###SSC MODEL###
-#make this example reproducible
-set.seed(1)
-names(p)
-
-#fit PCR model
-#the response variable will be the physical trait measured 
-#predictor variables will be a combo of our fixed and proxy
-model <- pcr(SSC~Latitude+Szn.Temp.Avg+Prox.Water+elevation+Longitutde+
-               Szn.Total.Precip+Szn.Min.Avg+Szn.Max.Avg,
-             data=p, scale=TRUE, validation="CV")
-
-summary(model)
-#intercept is 2.898    
-#drops after one component so we should use 2?
-#variance is 88.74     with three components?
-
-validationplot(model)
-validationplot(model, val.type="MSEP")
-validationplot(model, val.type="R2")
-
-#the model fits with two principle components 
-
-###AVGWGT MODEL###
-#make this example reproducible
-set.seed(1)
-
-#fit PCR model
-#the response variable will be the physical trait measured 
-#predictor variables will be a combo of our fixed and proxy
-model1 <- pcr(avgwgt~Latitude+Szn.Temp.Avg+Prox.Water+elevation+Longitutde+
-                Szn.Total.Precip+Szn.Min.Avg+Szn.Max.Avg,
-              data=p, scale=TRUE, validation="CV")
-
-summary(model1)
-#intercept is 32.49        
-#does not drop off until 4 comps 
-#variance is 88.74 with three components?
-
-validationplot(model1)
-validationplot(model1, val.type="MSEP")
-validationplot(model1, val.type="R2")
-#the model fits with two principle components
-
-
 
 #Correlation Matrix-------------------------------------------------------------
-#we're going to round out looking at the influence of our varibales by creating a,
+#we're going to round out looking at the influence of our variables by creating a,
 #correlation matrix. This will help to pin point which interactions to look at, 
 #during analysis 
 
 #first create a practice data set
 #were going to alter this table for fruit quality analysis 
-p1 <- read_csv("chap_all_dat.csv")
-View(p1)
+p1 <- c
 #filter out variables that we're not going to look at 
-p1 <- p1 %>% dplyr::select(-c(1:4, 26:50 ))
-#remove duplicated rows from the data 
-p1 <- p1 %>% distinct()
+p1 <- p1 %>% dplyr::select(-c("orchard.num", "bag.weight", "apple.wgt.3","site.code", "orchard.type"))
+
 view(p1)
 
 library(Hmisc)
@@ -234,164 +157,126 @@ corrplot(cor(p1))
 #2: proxy climatic factors (lat, long, elev)
 
 ###part 1### 
-#values currently not correct!
-m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
+m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/orchard.num), data=c)
 summary(m1)
-Anova(m1) 
+Anova(m1) #p=0.294
 
-m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
+m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/orchard.num), data=c)
 summary(m2)
-Anova(m2)
+Anova(m2) #p=0.9851
 
-m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
+m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=c)
 summary(m3)
-Anova(m3)#orchard.type p=0.8997
+Anova(m3) #p=0.8712
 
-m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/Orchard.num/Tree), data=c)
+m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/orchard.num), data=c)
 summary(m4)
-Anova(m4)
+Anova(m4) #p=0.6817
 
 #aggregate the data so that we have some idea of the differences between orchard types
 aggregate(SSC~orchard.type, data=c, FUN=mean)
-# Conventional 10.88182
-# Organic 11.78462
+#Conventional 10.88182
+#Organic 11.78462
 
 aggregate(Firmness~orchard.type, data=c, FUN=mean)
 #Conventional 22.26473
 #Organic 22.44308
 
 aggregate(avgwgt~orchard.type, data=c, FUN=mean)
-#1 Conventional 100.93273
-#    Organic 98.68308
+#Conventional 100.29091
+#Organic 98.67692
 
 aggregate(maturity.index~orchard.type, data=c, FUN=mean)
-# Conventional       3.781818
-#    Organic       4.138462
+#Conventional 3.781818
+#Organic 4.138462
 
-###part 2###
+###part 2 using Proxy Climatic Variables
 #values not correct!
 ###SSC###
-s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
+s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(s1)
-Anova(s1)
-#Latitude p=1.906e-05 ***
-#orchard.type p=0.4788    
-#Latitude:orchard.type p=0.6393  
+Anova(s1)#Latitude p=1.906e-05 
 
-s2<- glmmTMB(SSC ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
+s2<- glmmTMB(SSC ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
 summary(s2)
 Anova(s2)
-#elevation p=0.1148
-#orchard.type p=0.2849
-#elevation:orchard.type p=0.6719
 
-s3<- glmmTMB(SSC ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
+s3<- glmmTMB(SSC ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(s3)
 Anova(s3)
-#Longitutde              0.5870  1     0.4436
-#orchard.type            0.9519  1     0.3292
-#Longitutde:orchard.type 0.0287  1     0.8656
-
 
 ###Firmness###
-f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
+f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(f1)
-Anova(f1)
-#Latitude p=4.112e-09 ***
-#orchard.type p=0.7735    
-#Latitude:orchard.type p=0.3366 
+Anova(f1)#Latitude p=4.112e-09 ***
 
-f2<- glmmTMB(Firmness ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
+
+f2<- glmmTMB(Firmness ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
 summary(f2)
 Anova(f2)
-#elevation p=0.1808
-#orchard.type p=0.9686
-#elevation:orchard.type p=0.6368
 
-f3<- glmmTMB(Firmness ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
+f3<- glmmTMB(Firmness ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(f3)
 Anova(f3)
 
-#Longitutde              0.2882  1     0.5914
-#orchard.type            0.0030  1     0.9563
-#Longitutde:orchard.type 1.8458  1     0.1743
-
-
-###Average Weight (weight of 3 apples minus the bag divided by 3)###
-w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
+###Average Weight
+w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(w1)
-Anova(w1)
-#Latitude p=0.570994   
-#orchard.type p=0.716308   
-#Latitude:orchard.type p=0.001643 ** 
+Anova(w1)#Latitude:orchard.type p=0.001822 **
 
-w2<- glmmTMB(avgwgt ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
+w2<- glmmTMB(avgwgt ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
 summary(w2)
-Anova(w2)
-#elevation p=0.005707 **
-#orchard.type p=0.465530   
-#elevation:orchard.type p=0.087329 .
+Anova(w2) #elevation p=0.02534 *
 
-w3<- glmmTMB(avgwgt ~ Longitude*orchard.type + (1|site.code/onum/Tree), data=c)
+w3<- glmmTMB(avgwgt ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(w3)
 Anova(w3)
-#Longitude p=0.3660
-#orchard.type p=0.7945
-#Longitude:orchard.type p=0.1693
 
 
 #Maturity  
-mt1 <- glmmTMB(maturity.index ~ Latitude*orchard.type + (1|site.code/onum/Tree), data=c)
+mt1 <- glmmTMB(maturity.index ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(mt1)
-Anova(mt1)
-#Latitude p=0.0489 *
-#orchard.type p=0.9454  
-#Latitude:orchard.type p=0.3272 
+Anova(mt1)#Latitude 0.05779 .
 
-mt2<- glmmTMB(maturity.index ~ elevation*orchard.type + (1|site.code/onum/Tree), data=c)
+mt2<- glmmTMB(maturity.index ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
 summary(mt2)
 Anova(mt2)
-#elevation p=0.5632
-#orchard.type p=0.8615
-#elevation:orchard.type p=0.4549
 
-mt3<- lm(maturity.index ~ Longitude*orchard.type, data=c)
+mt3<- glmmTMB(maturity.index ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
 summary(mt3)
 Anova(mt3)
-#Longitude                6.807   1  4.5859 0.03433 *
-#orchard.type             2.193   1  1.4777 0.22661  
-#Longitude:orchard.type   0.157   1  0.1055 0.74589 
+
 
 ###traits influence on each other 
-sxf<- glmmTMB( SSC*Firmness~ orchard.type + (1|site.code/onum), data=c)
+sxf<- glmmTMB( SSC+Firmness~ orchard.type + (1|site.code/orchard.num), data=c)
 summary(sxf)
 Anova(sxf)
 
-sxw<- glmmTMB(SSC*avgwgt~orchard.type + (1|site.code/onum), data=c)
+sxw<- glmmTMB(SSC+avgwgt~orchard.type + (1|site.code/orchard.num), data=c)
 summary(sxw)
 Anova(sxw)
 
-sxm<- glmmTMB(SSC*maturity.index~orchard.type + (1|site.code/onum), data=c)
+sxm<- glmmTMB(SSC+maturity.index~orchard.type + (1|site.code/orchard.num), data=c)
 summary(sxm)
 Anova(sxm)
 
-wxf<- glmmTMB(avgwgt*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+wxf<- glmmTMB(avgwgt+Firmness ~orchard.type+ (1|site.code/orchard.num), data=c)
 summary(wxf)
 Anova(wxf)
 
 
-wxm<- glmmTMB(avgwgt*maturity.index ~orchard.type+ (1|site.code/onum), data=c)
+wxm<- glmmTMB(avgwgt+maturity.index ~orchard.type+ (1|site.code/orchard.num), data=c)
 summary(wxf)
 Anova(wxf)
 
 
-fxm<- glmmTMB(maturity.index*Firmness ~orchard.type+ (1|site.code/onum), data=c)
+fxm<- glmmTMB(maturity.index+Firmness ~orchard.type+ (1|site.code/orchard.num), data=c)
 summary(fxm)
 Anova(fxm)
 
 
 #Question 1 Figures---------------------------------------------------------------
-###mgmt and physcial quality alone 
+###mgmt and physical quality alone 
 b1 <- ggplot(c, aes(x=orchard.type, y=SSC, color=orchard.type))+
   theme_classic() +
   geom_boxplot(outlier.shape=NA)+
@@ -464,155 +349,140 @@ avgwgt1
 
 #Question 2---------------------------------------------------------------------
 #Which abiotic factors are the most important drivers of fruit quality?
-#total precipitation x otype 
-pl1<- glmmTMB(SSC ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
+
+###total precipitation x otype###
+pl1<- glmmTMB(SSC ~ Szn.Total.Precip*orchard.type + (1|site.code/orchard.num), data=c)
 summary(pl1)
 Anova(pl1)
 #Szn.Total.Precip              7.3440  1   0.006729 **
-#orchard.type                  1.5530  1   0.212698   
-#Szn.Total.Precip:orchard.type 1.6851  1   0.194244  
 
-pl2<- glmmTMB(Firmness ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
+pl2<- glmmTMB(Firmness ~ Szn.Total.Precip*orchard.type + (1|site.code/orchard.num), data=c)
 summary(pl2)
 Anova(pl2)
-#Szn.Total.Precip              0.1953  1     0.6586
-#orchard.type                  0.0057  1     0.9397
-#Szn.Total.Precip:orchard.type 0.6159  1     0.4326
 
-pl3<- glmmTMB(avgwgt ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
+
+pl3<- glmmTMB(avgwgt ~ Szn.Total.Precip*orchard.type + (1|site.code/orchard.num), data=c)
 summary(pl3)
-Anova(pl3)
-#Szn.Total.Precip              2.8708  1    0.09020 .
-#orchard.type                  0.0067  1    0.93480  
-#Szn.Total.Precip:orchard.type 3.9157  1    0.04784 *
+Anova(pl3) #Szn.Total.Precip p=0.007601 **
 
-pl4<- glmmTMB(maturity.index ~ Szn.Total.Precip*orchard.type + (1|site.code/onum), data=c)
+
+pl4<- glmmTMB(maturity.index ~ Szn.Total.Precip*orchard.type + (1|site.code/orchard.num), data=c)
 summary(pl4)
-Anova(pl4)
-#Szn.Total.Precip              7.7214  1   0.005457 **
-#orchard.type                  0.0916  1   0.762174   
-#Szn.Total.Precip:orchard.type 0.2209  1   0.638342  
+Anova(pl4)#Szn.Total.Precip p=0.006861 **
 
-#avgerage seasonal temp x otype   
-atl<- glmmTMB(SSC ~ Szn.Temp.Avg*orchard.type + (1|site.code/onum), data=c)
+
+###avgerage seasonal temp x otype### 
+atl<- glmmTMB(SSC ~ Szn.Temp.Avg*orchard.type + (1|site.code/orchard.num), data=c)
 summary(atl)
-Anova(atl)
-#Szn.Temp.Avg              26.5282  1  2.597e-07 ***
-#orchard.type               0.1087  1     0.7416    
-#Szn.Temp.Avg:orchard.type  0.5756  1     0.4481  
+Anova(atl)#Szn.Temp.Avg p=2.597e-07 ***
 
-at2<- glmmTMB(Firmness ~ Szn.Temp.Avg*orchard.type + (1|site.code/onum), data=c)
+
+at2<- glmmTMB(Firmness ~ Szn.Temp.Avg*orchard.type + (1|site.code/orchard.num), data=c)
 summary(at2)
-Anova(at2)
-#Szn.Temp.Avg              11.3947  1  0.0007365 ***
-#orchard.type               0.0010  1  0.9748785    
-#Szn.Temp.Avg:orchard.type  0.2247  1  0.6354858  
+Anova(at2)#Szn.Temp.Avg p=0.0007365 ***
 
-at3<- glmmTMB(avgwgt ~ Szn.Temp.Avg*orchard.type + (1|site.code/onum), data=c)
+
+at3<- glmmTMB(avgwgt ~ Szn.Temp.Avg*orchard.type + (1|site.code/orchard.num), data=c)
 summary(at3)
-Anova(at3)
-#Szn.Temp.Avg              0.3241  1   0.569146   
-#orchard.type              0.1482  1   0.700282   
-#Szn.Temp.Avg:orchard.type 9.2367  1   0.002372 **
+Anova(at3)#Szn.Temp.Avg:orchard.type p=0.002653 **
 
-at4<- glmmTMB(maturity.index ~ Szn.Temp.Avg*orchard.type + (1|site.code/onum), data=c)
+at4<- glmmTMB(maturity.index ~ Szn.Temp.Avg*orchard.type + (1|site.code/orchard.num), data=c)
 summary(at4)
-Anova(at4)
-#Szn.Temp.Avg              6.9050  1   0.008595 **
-#orchard.type              0.0423  1   0.837056   
-#Szn.Temp.Avg:orchard.type 0.6519  1   0.419438 
+Anova(at4)#Szn.Temp.Avg p=0.005154 **
 
-#proximity to water x otype 
-pxl<- glmmTMB(SSC ~ Prox.Water*orchard.type + (1|site.code/onum), data=c)
+###proximity to water x otype###
+pxl<- glmmTMB(SSC ~ Prox.Water*orchard.type + (1|site.code/orchard.num), data=c)
 summary(pxl)
 Anova(pxl)
-#Prox.Water              1.4996  1     0.2207
-#orchard.type            0.9875  1     0.3204
-#Prox.Water:orchard.type 0.4179  1     0.5180
 
-px2<- glmmTMB(Firmness ~ Prox.Water*orchard.type + (1|site.code/onum), data=c)
+
+px2<- glmmTMB(Firmness ~ Prox.Water*orchard.type + (1|site.code), data=c)
 summary(px2)
 Anova(px2)
-#Prox.Water              1.1828  1     0.2768
-#orchard.type            0.0378  1     0.8457
-#Prox.Water:orchard.type 1.8788  1     0.1705
 
-px3<- glmmTMB(avgwgt ~ Prox.Water*orchard.type + (1|site.code/onum), data=c)
+
+px3<- glmmTMB(avgwgt ~ Prox.Water*orchard.type + (1|site.code/orchard.num), data=c)
 summary(px3)
 Anova(px3)
-#Prox.Water              0.1974  1     0.6569
-#orchard.type            0.0106  1     0.9179
-#Prox.Water:orchard.type 0.0027  1     0.9585
 
-px4<- glmmTMB(maturity.index ~ Prox.Water*orchard.type + (1|site.code/onum), data=c)
+
+px4<- glmmTMB(maturity.index ~ Prox.Water*orchard.type + (1|site.code), data=c)
 summary(px4)
 Anova(px4)
-#NaN
 
-#season avg max x otype 
-smx1<- glmmTMB(SSC ~ Szn.Max.Avg*orchard.type + (1|site.code/onum), data=c)
+###season avg max x otype###
+smx1<- glmmTMB(SSC ~ Szn.Max.Avg*orchard.type + (1|site.code), data=c)
 summary(smx1)
-Anova(smx1)
-#Szn.Max.Avg              18.9030  1  1.375e-05 ***
-#orchard.type              0.1568  1     0.6921    
-#Szn.Max.Avg:orchard.type  0.0080  1     0.9287 
+Anova(smx1) #Szn.Max.Avg p=1.375e-05 ***
+ 
 
-smx2<- glmmTMB(Firmness ~ orchard.type*Szn.Max.Avg + (1|site.code/onum), data=c)
+smx2<- glmmTMB(Firmness ~ orchard.type*Szn.Max.Avg + (1|site.code/orchard.num), data=c)
 summary(smx2)
-Anova(smx2)
-#orchard.type              0.0353  1   0.851057   
-#Szn.Max.Avg              10.8113  1   0.001009 **
-#orchard.type:Szn.Max.Avg  0.2284  1   0.632709   
+Anova(smx2) #Szn.Max.Avg p=0.001009 **
+ 
 
-smx3<- glmmTMB(avgwgt ~ orchard.type*Szn.Max.Avg + (1|site.code/onum), data=c)
+smx3<- glmmTMB(avgwgt ~ orchard.type*Szn.Max.Avg + (1|site.code/orchard.num), data=c)
 summary(smx3)
-Anova(smx3)
-#orchard.type              0.1452  1  0.7031488    
-#Szn.Max.Avg               0.0018  1  0.9663953    
-#orchard.type:Szn.Max.Avg 11.4873  1  0.0007007 ***
+Anova(smx3) #orchard.type:Szn.Max.Avg p=0.0008262 ***
 
-smx4<- glmmTMB(maturity.index ~ orchard.type*Szn.Max.Avg + (1|site.code/onum), data=c)
+
+smx4<- glmmTMB(maturity.index ~ orchard.type*Szn.Max.Avg + (1|site.code/orchard.num), data=c)
 summary(smx4)
-Anova(smx4)
-#orchard.type             0.3166  1   0.573643   
-#Szn.Max.Avg              7.7421  1   0.005395 **
-#orchard.type:Szn.Max.Avg 0.1453  1   0.703109 
+Anova(smx4)#Szn.Max.Avg p=0.008311 **
 
-#season avg min x otype 
-sm1<- glmmTMB(SSC ~ orchard.type*Szn.Min.Avg + (1|site.code/onum), data=c)
+
+###season avg min x otype###
+sm1<- glmmTMB(SSC ~ orchard.type*Szn.Min.Avg + (1|site.code/orchard.num), data=c)
 summary(sm1)
-Anova(sm1)
-#orchard.type              1.0205  1     0.3124    
-#Szn.Min.Avg              15.9763  1  6.414e-05 ***
-#orchard.type:Szn.Min.Avg  0.4255  1     0.5142
+Anova(sm1)#Szn.Min.Avg p=6.414e-05 ***
 
-sm2<- glmmTMB(Firmness ~ orchard.type*Szn.Min.Avg + (1|site.code/onum), data=c)
+sm2<- glmmTMB(Firmness ~ orchard.type*Szn.Min.Avg + (1|site.code/orchard.num), data=c)
 summary(sm2)
-Anova(sm2)
-#orchard.type             0.0786  1   0.779246   
-#Szn.Min.Avg              9.3198  1   0.002267 **
-#orchard.type:Szn.Min.Avg 0.0299  1   0.862609  
+Anova(sm2)#Szn.Min.Avg p=0.002267 **
+ 
 
-sm3<- glmmTMB(avgwgt ~ orchard.type*Szn.Min.Avg + (1|site.code/onum), data=c)
+sm3<- glmmTMB(avgwgt ~ orchard.type*Szn.Min.Avg + (1|site.code), data=c)
 summary(sm3)
-Anova(sm3)
-#orchard.type             0.0461  1    0.82994  
-#Szn.Min.Avg              0.8381  1    0.35995  
-#orchard.type:Szn.Min.Avg 5.3243  1    0.02103 *
+Anova(sm3) #orchard.type:Szn.Min.Avg p=0.02164 *
 
-sm4<- glmmTMB(maturity.index ~ orchard.type*Szn.Min.Avg + (1|site.code/onum), data=c)
+sm4<- glmmTMB(maturity.index ~ orchard.type*Szn.Min.Avg + (1|site.code), data=c)
 summary(sm4)
 Anova(sm4)
-#orchard.type             0.0811  1     0.7757
-#Szn.Min.Avg              2.5495  1     0.1103
-#orchard.type:Szn.Min.Avg 1.0085  1     0.3153
 
 #Question 2 Figures ------------------------------------------------------------
 
+#looking at fixed variables with avgwgt. It seems that as temps increase, 
+#size increases in all but more with organic apples 
+fixed1 = ggplot(c, aes(x=Szn.Max.Avg, y=avgwgt, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Max Temp Avg")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+fixed1
+
+fixed2 = ggplot(c, aes(x=Szn.Min.Avg, y=avgwgt, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Min Temp Avg")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+fixed2
+
+fixed3 = ggplot(c, aes(x=Szn.Temp.Avg, y=avgwgt, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Temp Avg")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+fixed3
+
+
 #Question 3---------------------------------------------------------------------
 #Which specific management practices are the most important drivers of fruit quality?
-names(c)
-
 ##pest pressure## 
 pest1 <- glmmTMB(SSC ~ Pest_Index*orchard.type + (1|site.code/onum/Tree), data=c)
 summary(pest1)
@@ -701,7 +571,14 @@ Anova(Mowing)
 #none 
 
 #Question 3 Figures-------------------------------------------------------------
-
+mgmt1 = ggplot(c, aes(x=Pest_Index, y=SSC, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("SSC") +
+  xlab ("Pest Pressure")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+mgmt1
 
 
 #Multiple plot function----------------------------------------------------------------------------------------------
