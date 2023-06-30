@@ -85,6 +85,12 @@ ggplot(df, aes(x=PC, y=var_explained)) +
   ylim(0, 1)
 
 
+PCX <- results$x
+
+
+
+
+
 ###Quality###
 
 results <- prcomp(p_qual, scale = TRUE)
