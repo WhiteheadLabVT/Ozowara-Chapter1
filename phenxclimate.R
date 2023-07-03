@@ -13,7 +13,7 @@ library(vegan) #multivariate stats
 library(Boruta) #random forest models
 library(readr)
 ###Data Organization###
-###Data Organization 
+###Data Organization###
 #Fruit Level Data--------------------------------------------------------------
 #This data set is going to be used to answer one portion of Q1. This data set, 
 #contains the data for each known compound as well as the mgmt system, and site
@@ -30,13 +30,27 @@ d <- d %>%
 View(d)
 
 
+#logit transformation worked the best so were going to use that 
+d <- d %>%
+  mutate(TotalPhentrans= log10(d$TotalPhen))
+d$TotalPhentrans[d$TotalPhentrans==-Inf] <- NA
+na.omit(d$TotalPhentrans)
+view(d$TotalPhentrans)
+
+shapiro.test(d$TotalPhentrans)
+#W = 0.86448, p-value < 2.2e-16
+hist(d$TotalPhentrans)
+#not good but we'll mess around with this 
+View(d)
+
+
 #separate by tissue type 
 d.sk <- filter(d, Tissue=="SKIN")
-d.sk <- dplyr::select(d.sk, -(6+which(colSums(d.sk[7:29], na.rm=TRUE) %in% 0)))
+d.sk <- dplyr::select(d.sk, -(6+which(colSums(d.sk[7:32], na.rm=TRUE) %in% 0)))
 d.pu <- filter(d, Tissue=="PULP")
-d.pu <- dplyr::select(d.pu, -(6+which(colSums(d.pu[7:29], na.rm=TRUE) %in% 0)))
+d.pu <- dplyr::select(d.pu, -(6+which(colSums(d.pu[7:32], na.rm=TRUE) %in% 0)))
 d.se <- filter(d, Tissue=="SEED")
-d.se <- dplyr::select(d.se, -(6+which(colSums(d.se[7:29], na.rm=TRUE) %in% 0)))
+d.se <- dplyr::select(d.se, -(6+which(colSums(d.se[7:32], na.rm=TRUE) %in% 0)))
 
 #Assign row names
 d <- as.data.frame(d)
@@ -58,7 +72,6 @@ d.expl.pu <- d.pu[,1:5]
 #Seed
 d.comp.se <- d.se[,8:29]
 d.expl.se <- d.se[,1:5]
-
 
 #Orchard Level Data----------------------------------------
 #These data sets will be condensed to the orchard level (24 observations)
@@ -167,61 +180,225 @@ View(SeedD)
 
 
 
+###Data Analysis###
+#Q1: How do management systems (organic vs conventional) shape chemical comp and richness?-------
+#Analyses: one linear mixed models for total phenolics and phenolic richness for the 
+#whole fruit and for each tissue type 
 
-#Data Transformation------------------------------------------------------------
-#Total Phenol data is skewed weird and yields a high Shapiro score 
-#Need to transform this data so that we can work with it 
+###total phenolics###
+tp1 <- glmmTMB(TotalPhentrans~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d)
+summary(tp1)
+Anova(tp1)
+#orchard.type          1.6935  1    0.19314    
+#Tissue              321.4999  2    < 2e-16 ***
+#orchard.type:Tissue   5.1914  2    0.07459 . 
 
-#first we'll look at the data 
-shapiro.test(d$TotalPhen)
-#W = 0.59801, p-value < 2.2e-16
-hist(d$TotalPhen)
-#skewed to 0 on the positive side 
+#total p per tissue type 
+tp.p <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.pu)
+summary(tp.p)
+Anova(tp.p)
 
-#logit transformation 
-d <- d %>%
-  mutate(TotalPhentrans= log10(d$TotalPhen))
-d$TotalPhentrans[d$TotalPhentrans==-Inf] <- NA
-na.omit(d$TotalPhentrans)
-view(d$TotalPhentrans)
+tp.sk <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.sk)
+summary(tp.sk)
+Anova(tp.sk)
 
-shapiro.test(d$TotalPhentrans)
-#W = 0.86448, p-value < 2.2e-16
-hist(d$TotalPhentrans)
-###didnt seem to do anything but were going to use this 
-
+tp.se <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.se)
+summary(tp.se)
+Anova(tp.se) #p=0.006587 **
 
 
-#Asin sqrt transformation 
-d <- d %>%
-  mutate(TotalPhenArc= sqrt(d$TotalPhen))
-d$TotalPhenArc[d$TotalPhenArc==0] <- NA
-na.omit(d$TotalPhenArc)
-view(d$TotalPhenArc)
+###Q1B:phenolics richness###
+pr1 <- glmmTMB(PhenRich~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d, family= poisson)
+summary(pr1)
+Anova(pr1)
 
-#shapiro test this 
-shapiro.test(d$TotalPhenArc)
-#W = 0.9281, p-value = 9.022e-12
+#orchard.type           2.2590  1    0.16471    
+#Tissue              1279.1586  2    < 2e-16 ***
+#orchard.type:Tissue    6.4470  2    0.03982 *  
 
-#Histogram for the transformation 
-hist(d$TotalPhenArc)
-#did not make data normal 
+diagnose(pr1)
+shapiro.test(resid(pr1))
+hist(resid(pr1))
+#= 0.98958, p-value = 0.01156
 
-#Inverse transformation
-d <- d %>%
-  mutate(TotalPhenInv= 1/(d$TotalPhen))
-d$TotalPhenInv[d$TotalPhenInv==Inf] <- NA
-na.omit(d$TotalPhenInv)
-view(d$TotalPhenInv)
 
-#shapiro test this 
-shapiro.test(d$TotalPhenInv)
-#W = 0.091764, p-value < 2.2e-16
+#phen rich per tissue type 
+pr.p <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.pu, family= poisson)
+summary(pr.p)
+Anova(pr.p)
+#not sig 
 
-#Histogram for the transformation 
-hist(d$TotalPhenInv)
-#did not make data normal 
+pr.sk <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.sk, family= poisson)
+summary(pr.sk)
+Anova(pr.sk)
+#not sig 
 
+pr.se <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.se, family= poisson)
+summary(pr.se)
+Anova(pr.se)
+#orchard.type  0.01726 *
+#Q1A: Which compounds distinguish fruits raised in their respective management systems?----------
+###NMDS
+#someone online said to change the distance
+m.NMDS <- metaMDS(d.comp,distance = "euclidean", k=2, trymax=100, autotransform =TRUE)
+m.NMDS
+
+#for plotting, need to add columns that give values for 
+#colors and symbols we want in plot
+d.expl$Color <- recode_factor(d.expl$orchard.type,
+                              Organic="red", Conventional="blue")
+d.expl$Symbol <- recode_factor(d.expl$Tissue,
+                               SK=8, PU=1, SE=2)
+d.expl$Symbol <- as.numeric(as.character(d.expl$Symbol))
+
+d.expl$orchard.type = as.factor(d.expl$orchard.type)
+
+
+plot(m.NMDS, type="n") #plots the ordination axes only
+#cant get to plot 
+points(m.NMDS, pch=d.expl$Symbol,
+       col=as.character(d.expl$Color), cex = 0.8)     
+
+
+
+#PERMANOVA can test whether the visualized differences are significant
+
+m.perm <- adonis2(d.comp~orchard.type*Tissue, data=d.expl)
+m.perm
+
+
+
+#PERMANOVA can test whether the visualized differences are significant
+
+m.perm <- adonis2(d.comp~Dom.Status*Tissue, data=d.expl)
+m.perm
+
+#Random Forest
+###skin
+m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$orchard.type, importance=TRUE, 
+                         proximity=TRUE, oob.prox=TRUE, ntree=2000)
+m1.rf.sk$importance
+varImpPlot(m1.rf.sk)
+MDSplot(m1.rf.sk, d.expl.sk$orchard.type)
+
+#using boruta 
+m1.rf.b.sk <- Boruta(d.comp.sk,d.expl.sk$orchard.type)
+m1.rf.b.sk
+#plot 
+plot(m1.rf.b.sk)  
+getSelectedAttributes(m1.rf.b.sk) #lists all important ones
+#"pb1"         "syr.acid"    "epicatechin"
+
+#performing MANOVA 
+d.comp.sk.sel <- data.matrix(d.comp.sk[,getSelectedAttributes(m1.rf.b.sk)])
+m1.man.sk <- manova(d.comp.sk.sel ~ d.expl.sk$orchard.type)
+summary(m1.man.sk) 
+#overall significance for MANOVA p= 0.2883
+
+#follow-up ANOVAs for each individual compound
+summary.aov(m1.man.sk)  
+#pb1 = 0.3935
+
+#some quick plots of all of them
+par(mfrow=c(3,3))
+for (i in 1:length(colnames(d.comp.sk.sel))){
+  d.temp=d.comp.sk.sel[,i]
+  plot(d.temp ~ d.expl.sk$orchard.type, ylab=colnames(d.comp.sk.sel)[i])
+}
+dev.off()
+
+###PULP###
+
+m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
+                         proximity=TRUE, oob.prox=TRUE, ntree=2000)
+m1.rf.pu$importance
+varImpPlot(m1.rf.pu)
+MDSplot(m1.rf.pu, d.expl.pu$orchard.type)
+
+m1.rf.b.pu <- Boruta(d.comp.pu,d.expl.pu$orchard.type)
+m1.rf.b.pu
+plot(m1.rf.b.pu)  
+#important variables: chl.acid, PhenRich, TotalPhen, U1
+#lists all important ones
+getSelectedAttributes(m1.rf.b.pu) 
+#"chl.acid"  "U1"
+
+##Running MANOVAS 
+d.comp.pu.sel <- data.matrix(d.comp.pu[,getSelectedAttributes(m1.rf.b.pu)])
+m1.man.pu <- manova(d.comp.pu.sel ~ d.expl.pu$orchard.type) #doesnt work for some reason 
+summary(m1.man.pu)  #overall significance for MANOVA
+summary.aov(m1.man.pu)  #follow-up ANOVAs for each individual compound
+#0.9745
+
+#some quick plots of all of them
+par(mfrow=c(3,3))
+for (i in 1:length(colnames(d.comp.pu.sel))){
+  d.temp=d.comp.pu.sel[,i]
+  plot(d.temp ~ d.expl.pu$orchard.type, ylab=colnames(d.comp.pu.sel)[i])
+}
+dev.off()
+
+
+###SEEDS###
+
+m1.rf.se <- randomForest(d.comp.se,d.expl.se$orchard.type, importance=TRUE, 
+                         proximity=TRUE, oob.prox=TRUE, ntree=2000)
+m1.rf.se$importance
+varImpPlot(m1.rf.se)
+MDSplot(m1.rf.se, d.expl.se$orchard.type)
+
+
+m1.rf.b.se <- Boruta(d.comp.se,d.expl.se$orchard.type)
+m1.rf.b.se
+plot(m1.rf.b.se)  #important variables (better than shadow) are in green
+getSelectedAttributes(m1.rf.b.se) #lists all important ones
+#pb2"        "syr.acid"   "reynoutrin" "U2"         "PhenRich" 
+#Running MANOVAS 
+d.comp.se.sel <- data.matrix(d.comp.se[,getSelectedAttributes(m1.rf.b.se)])
+m1.man.se <- manova(d.comp.se.sel ~ d.expl.se$orchard.type)
+summary(m1.man.se)  #overall significance for MANOVA
+summary.aov(m1.man.se)  
+#p=0.02016 *
+
+par(mfrow=c(3,3))
+for (i in 1:length(colnames(d.comp.se.sel))){
+  d.temp=d.comp.se.sel[,i]
+  plot(d.temp ~ d.expl.se$orchard.type, ylab=colnames(d.comp.se.sel)[i])
+}
+dev.off()
+
+
+
+
+
+
+
+#Question 1 Figures------------------------------------------------------------
+
+tphen <- ggplot(d, aes(x=Tissue, y=TotalPhentrans, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Total Phenolics (ug per g") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("pulp", "seeds", "skin"))
+tphen
+
+
+
+phenrich <- ggplot(d, aes(x=Tissue, y=PhenRich, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Phenolic Richness") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("pulp", "seeds", "skin"))
+phenrich
+
+
+
+
+#Q2: Which abiotic factors are the most important drivers of fruit comp and chem?----------
 #PCA----------------------------------------------------------------------------
 install.packages("pls")
 library(pls)
@@ -267,6 +444,23 @@ ggplot(df, aes(x=PC, y=var_explained)) +
   ylab("Variance Explained") +
   ggtitle("Scree Plot") +
   ylim(0, 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #correlation matrix-----------------------------------------------------------
@@ -433,69 +627,6 @@ dev.off()
 #How do management systems interact with broad variation in abiotic conditions across latitude to shape:
 #a) fruit chemical composition, b) fruit chemical diversity
 
-###Q1A: total phenolics###
-tp1 <- glmmTMB(TotalPhentrans~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d)
-summary(tp1)
-Anova(tp1)
-#orchard.type          1.6935  1    0.19314    
-#Tissue              321.4999  2    < 2e-16 ***
-#orchard.type:Tissue   5.1914  2    0.07459 . 
-
-diagnose(tp1)
-shapiro.test(resid(tp1))
-hist(resid(tp1))
-
-#residuals not good
-#data needs to be transformed using either a logit or arcsin method 
-
-
-
-#total p per tissue type 
-tp.p <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.pu)
-summary(tp.p)
-Anova(tp.p)
-
-tp.sk <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.sk)
-summary(tp.sk)
-Anova(tp.sk)
-
-tp.se <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.se)
-summary(tp.se)
-Anova(tp.se)
-#orchard.type 7.3822  1   0.006587 **
-
-
-###Q1B:phenolics richness###
-pr1 <- glmmTMB(PhenRich~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d, family= poisson)
-summary(pr1)
-Anova(pr1)
-
-#orchard.type           2.2590  1    0.16471    
-#Tissue              1279.1586  2    < 2e-16 ***
-#orchard.type:Tissue    6.4470  2    0.03982 *  
-
-diagnose(pr1)
-shapiro.test(resid(pr1))
-hist(resid(pr1))
-#= 0.98958, p-value = 0.01156
-
-
-#phen rich per tissue type 
-pr.p <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.pu, family= poisson)
-summary(pr.p)
-Anova(pr.p)
-#not sig 
-
-pr.sk <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.sk, family= poisson)
-summary(pr.sk)
-Anova(pr.sk)
-#not sig 
-
-pr.se <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.se, family= poisson)
-summary(pr.se)
-Anova(pr.se)
-#orchard.type  0.01726 *
-
 
 #How do management systems interact with broad abiotic conditions
 #Q1A
@@ -568,29 +699,7 @@ Anova(pre1)
 
 #elevation              14.6850  1  0.0001271 ***
 
-#Question 1 Figures------------------------------------------------------------
-
-tphen <- ggplot(d, aes(x=Tissue, y=TotalPhen, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Total Phenolics (ug per g") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("pulp", "seeds", "skin"))
-tphen
-
-
-
-phenrich <- ggplot(d, aes(x=Tissue, y=PhenRich, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Phenolic Richness") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("pulp", "seeds", "skin"))
-phenrich
-
-
+#Q2: Which specific pest pressures and management practices are the most important?
 #Question 2---------------------------------------------------------------------
 #Q1B Which abiotic factors are the most important drivers of fruit chemistry
 ###total phenolics###
