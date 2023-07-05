@@ -1,3 +1,4 @@
+#fruit quality analysis 
 rm(list=ls())# clears work space
 ###install packages-------------------------------------------------------------
 library(ggplot2)
@@ -405,6 +406,57 @@ corrplot(cor(p_mgmt))
 
 #Which pest or diseases presence has the most significant affect on fruit quality-----
 
+names(c)
+
+p_pest <- dplyr::select(c,c("Anthracnose","European Canker","Bullseye Rot", "Powdery mildew",     
+"Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Tree Borer",
+"Cedar Apple Rust","Bitter Rot","Leaf Roller","Horned Caterpillars","Trhips","Stemble",
+"Scale", "Pest_Index"))
+
+
+#calculate principal components
+results2 <- prcomp(p_pest, scale = TRUE)
+
+#this gives you the % variance explained
+summary(results1)  
+
+#display principal components
+results1$x
+
+results1$rotation
+#display the first six scores
+head(results1$x)
+
+#this plots the results of the PCAs into a two dimensional representation 
+biplot(results1,
+       col = c('darkblue', 'red'),
+       scale = TRUE, xlabs = rep("*", 24))
+
+
+#calculate total variance explained by each principal component
+summary(results1)$importance
+summary(results1)$importance[2,]
+
+var_explained1 = results1$sdev^2 / sum(results1$sdev^2)
+
+df1 <- data.frame(PC=1:8, var_explained1=var_explained1)
+
+#create scree plot
+ggplot(df1, aes(x=PC, y=var_explained1)) + 
+  geom_line() + 
+  geom_point()+
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+
+
+##Linear models PC x quality 
+
+pc_mgmt <- as.data.frame(results1$x)
+pc_mgmt <- cbind(pc_mgmt, c
+
+
 
 #Multiple plot function----------------------------------------------------------------------------------------------
 #
@@ -524,10 +576,6 @@ avgwgt1 = ggplot(c, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 avgwgt1
 
-
-
-
-#Question 2 
 #Q2 Figures ------------------------------------------------------------
 
 #looking at fixed variables with avgwgt. It seems that as temps increase, 
@@ -559,15 +607,13 @@ fixed3 = ggplot(c, aes(x=Szn.Temp.Avg, y=avgwgt, color=orchard.type)) +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 fixed3
 
+ggplot(c, aes(x = Szn.UVI, y = SSC)) +
+  geom_point(aes(color = orchard.type)) +
+  geom_smooth(method=glm, se=FALSE)+
+  facet_wrap(~orchard.type)+
+  scale_color_viridis_d()
 
 #Q3 Figures-------------------------------------------------------------
-mgmt1 = ggplot(c, aes(x=Pest_Index, y=SSC, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("SSC") +
-  xlab ("Pest Pressure")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-mgmt1
+
 
 
