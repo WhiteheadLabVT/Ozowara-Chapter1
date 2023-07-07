@@ -19,7 +19,7 @@ library(car)
 ######Data Organization and Restructuring###--------------------------------------------
 
 
-#Fruit Level Data--------------------------------------------------------------
+#Fruit Level Total Chemistry Data--------------------------------------------------------------
 #This data set is going to be used to answer one portion of Q1. This data set, 
 #contains the data for each known compound as well as the mgmt system, and site
 #code
@@ -237,7 +237,8 @@ Anova(tp.sk)
 
 tp.se <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.se)
 summary(tp.se)
-Anova(tp.se) #p=0.006587 **
+Anova(tp.se) 
+#orchard.typeOrganic p=0.006587 **
 
 
 ###Q1B:phenolics richness###
@@ -427,6 +428,10 @@ summary(pr.el)
 Anova(pr.el)
 #elevation              10.4298  1    0.00124 **
 
+pr.pw <- glmmTMB(PhenRich~ orchard.type*Prox.Water + (1|site.code), data=CCD)
+summary(pr.pw)
+Anova(pr.pw)
+
 #Total Phen 
 tp.la <- glmmTMB(TotalPhentrans~ orchard.type*Latitude + (1|site.code), data=CCD)
 summary(tp.la)
@@ -442,14 +447,19 @@ summary(tp.el)
 Anova(tp.el)
 #elevation              6.9692  1   0.008293 **
 
+tp.pw <- glmmTMB(TotalPhentrans~ orchard.type*Prox.Water + (1|site.code), data=CCD)
+summary(tp.pw)
+Anova(tp.pw)
 
 #Which abiotic factors are the most important drivers of fruit chem?------------
 
 #Analysis: principle components analysis followed by PC regression with each variable
-#followed by a correlation matrix for visual interpretation 
 #1 for whole fruit, skin, pulp, seed
 
-###WHOLE FRUIT###
+#can technically use the same first PCA for all 4 different analyses because
+#the values of the selected variables are the same
+
+###Principle Components Analysis###
 p_clim <- dplyr::select(CCD,c("Prox.Water", "Longitude","Latitude","elevation", 
 "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
 
@@ -467,6 +477,7 @@ results$rotation
 head(results$x)
 
 #this plots the results of the PCAs into a two dimensional representation 
+dev.off()
 biplot(results,
        col = c('darkblue', 'red'),
        scale = TRUE, xlabs = rep("*", 24))
@@ -488,273 +499,123 @@ ggplot(df, aes(x=PC, y=var_explained)) +
   ylab("Variance Explained") +
   ggtitle("Scree Plot") +
   ylim(0, 1)
+#PC's 6, 7, 8, 9 are very low/ not worth looking at
 
 
-#PC's  7, 8, 9 are very low/ not worth looking at
+###Principle Components Regression###
 
-##Linear models PC x quality 
-
+#Whole Fruit#
 pc_clim <- as.data.frame(results$x)
 pc_clim <- cbind(pc_clim, CCD)
 
-
-##TotalPhen###
-
-p1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + (1|site.code), data=pc_clim)
+#TotalPhen
+p1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
+                (1|site.code), data=pc_clim)
 summary(p1)
-#PC2                 -0.127781   0.029778   -4.29 1.78e-05 ***     
+#PC2 p= 2.25e-05 ***     
 
 plot(TotalPhen ~ PC2, data=pc_clim)
-
 results$rotation
+#Total Phen in the whole fruit increases as temps, UVI and precip increase. 
+#Total Phen in the whole fruit increases as lat, elevation, and proximity to 
+#water decrease
+#not specific to orchard type
 
-p2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + (1|site.code), data=pc_clim)
+
+#PhenRich
+p2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
+                (1|site.code), data=pc_clim)
 summary(p2)
-#PC2  0.000175 ***    
+#PC2 p= 0.00019 ***    
 
 plot(PhenRich ~ PC2, data=pc_clim)
-
 results$rotation
+#Phen Rich in the whole fruit increases as temps, UVI and precip increase. 
+#Phen Rich in the whole fruit increases as lat, elevation, and proximity to 
+#water decrease
+#not specific to ochrad type
 
-###correlation matrix 
-p_phenclim <- dplyr::select(CCD,c("Prox.Water", "Longitude","Latitude","elevation", 
- "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
- "TotalPhentrans", "PhenRich"))
-
-rcorr(as.matrix(p_phenclim))
-
-corrplot(cor(p_phenclim))
-
-###SKIN###
-psk_clim <- dplyr::select(SkinD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
-
-#calculate principal components
-results.sk <- prcomp(psk_clim, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.sk)  
-
-#display principal components
-results.sk$x
-
-results$rotation
-#display the first six scores
-head(results.sk$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.sk,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.sk)$importance
-summary(results.sk)$importance[2,]
-
-var_explained.sk = results.sk$sdev^2 / sum(results.sk$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.sk=var_explained.sk)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.sk)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-
-pc.sk_clim <- as.data.frame(results.sk$x)
+#SKIN#
+pc.sk_clim <- as.data.frame(results$x)
 pc.sk_clim <- cbind(pc.sk_clim, SkinD)
 
+#TotalPhen
+p.sk1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5
+                 +(1|site.code), data=pc.sk_clim)
+summary(p.sk1)#nothing
 
-##TotalPhen###
-psk1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.sk_clim)
-summary(psk1)
-#PC2  0.00102 **     
-
-plot(TotalPhen ~ PC2, data=pc_clim)
-
-results.sk$rotation
-
-psk2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.sk_clim)
-summary(psk2)
-#nothing   
+#PhenRich
+psk2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
+                  (1|site.code), data=pc.sk_clim)
+summary(psk2)#nothing
 
 
-###correlation matrix 
-pc.sk_phenclim <- dplyr::select(SkinD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-"TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(pc.sk_phenclim))
-corrplot(cor(pc.sk_phenclim))
-
-###PULP###
-p.pu_clim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
-
-#calculate principal components
-results.pu <- prcomp(p.pu_clim, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.pu)  
-
-#display principal components
-results.pu$x
-
-results.pu$rotation
-#display the first six scores
-head(results.pu$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.pu,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.pu)$importance
-summary(results.pu)$importance[2,]
-
-var_explained.pu = results.pu$sdev^2 / sum(results.pu$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.pu=var_explained.pu)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.pu)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-
-pc.pu_clim <- as.data.frame(results.pu$x)
+#PULP#
+pc.pu_clim <- as.data.frame(results$x)
 pc.pu_clim <- cbind(pc.pu_clim, PulpD)
 
-
 ##TotalPhen###
-ppu1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.pu_clim)
+ppu1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
+                  (1|site.code), data=pc.pu_clim)
 summary(ppu1)
-#PC1                  -1238.2      622.5  -1.989  0.04669 *  
-#PC2                  -4267.0     1082.2  -3.943 8.05e-05 ***
-#PC3                  -4064.2     1410.4  -2.882  0.00396 **
+#orchard.typeOrganic p= 0.0706 . 
+#PC2 p= 3.86e-05 ***
 
-plot(TotalPhen ~ PC1, data=pc.pu_clim)
-plot(TotalPhen ~ PC2, data=pc.pu_clim)
-plot(TotalPhen ~ PC3, data=pc.pu_clim)
+plot(TotalPhentrans ~ PC2, data=pc.pu_clim)
+results$rotation
+#Total Phen in the pulp increases as temps, UVI and precip increase. 
+#Total Phen in the pulp increases as lat, elevation, and proximity to 
+#water decrease
+#slight significance in organic 
 
-results.pu$rotation
-
-ppu2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.pu_clim)
+ppu2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
+                  (1|site.code), data=pc.pu_clim)
 summary(ppu2)
-#PC2                 -0.86158    0.24963  -3.451 0.000558 ***
-#PC3                 -0.63019    0.32536  -1.937 0.052757 .     
+#PC2 p= 0.000558 ***
+#PC3 p= 0.052757 .     
 
 plot(PhenRich ~ PC2, data=pc.pu_clim)
 plot(PhenRich ~ PC3, data=pc.pu_clim)
+results$rotation
 
-results.pu$rotation
-
-###correlation matrix 
-p.pu_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-"TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(p.pu_phenclim))
-
-corrplot(cor(p.pu_phenclim))
+#Phen Rich in the pulp increases as temps, UVI and precip increase. 
+#Phen Rich in the pulp increases as lat, elevation, and proximity to 
+#water decrease
+#not specific to orchard type
 
 
-
-###SEED###
-p.se_clim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
-
-#calculate principal components
-results.se <- prcomp(p.se_clim, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.se)  
-
-#display principal components
-results.se$x
-
-results.se$rotation
-#display the first six scores
-head(results.se$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.se,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.se)$importance
-summary(results.se)$importance[2,]
-
-var_explained.se = results.se$sdev^2 / sum(results.se$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.se=var_explained.se)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.se)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  5, 6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-pc.se_clim <- as.data.frame(results.se$x)
+#SEED#
+pc.se_clim <- as.data.frame(results$x)
 pc.se_clim <- cbind(pc.se_clim, SeedD)
 
-
-##TotalPhen###
-p.se1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4, data=pc.se_clim)
+#TotalPhen
+p.se1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 +PC5
+                 , data=pc.se_clim)
 summary(p.se1)
-#PC2                   -17200       6114  -2.813   0.0049 **
+#orchard.typeOrganic p= 0.000994 ***
+#PC2 p= 7.16e-08 ***
 
-plot(TotalPhen ~ PC2, data=pc.se_clim)
-results.se$rotation
+plot(TotalPhentrans ~ PC2, data=pc.se_clim)
+results$rotation
+#total phen increase specific to organic 
 
-p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc.se_clim)
+p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 +
+                   (1|site.code), data=pc.se_clim)
 summary(p.se2)
-#PC1                   0.3052     0.1202   2.539  0.01111 *  
-#PC2                  -1.2048     0.2112  -5.704 1.17e-08 ***
-#PC3                  -0.5668     0.2741  -2.068  0.03863 *    
+#orchard.typeOrganic p=0.0133 *
+#PC1 0.0050 **   
+#PC2 4.49e-10 ***
+#PC3 0.0197 *
+#PC5 0.0596 . 
 
 plot(PhenRich ~ PC1, data=pc.se_clim)
 plot(PhenRich ~ PC2, data=pc.se_clim)
 plot(PhenRich ~ PC3, data=pc.se_clim)
+plot(PhenRich ~ PC5, data=pc.se_clim)
+results$rotation
 
-results.se$rotation
+#phen rich increase in organic systems 
 
-###correlation matrix 
-p.se_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
- "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-                                       "TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(p.se_phenclim))
-
-corrplot(cor(p.se_phenclim))
 
 #Which specific management practices are the most important drivers of fruit chem?----
 
@@ -762,7 +623,7 @@ corrplot(cor(p.se_phenclim))
 #followed by a correlation matrix for visual interpretation 
 #1 for whole fruit, skin, pulp, seed
 
-###WHOLE FRUIT###
+###Principle Compnents Analysis###
 p_mgmt <- dplyr::select(CCD,c("Cultivation","Herbicides","Com_Mul", "Mowing",
                             "Weed_Mats", "Cover_Crops","Fire_Mgmt","Acres"))
 
@@ -801,170 +662,86 @@ ggplot(df1, aes(x=PC, y=var_explained1)) +
   ylab("Variance Explained") +
   ggtitle("Scree Plot") +
   ylim(0, 1)
+#let's look at them all
 
+###Principle Components Regression###
 
-##Linear models PC x quality 
-#all sig
-
+#Whole Fruit#
 pc_mgmt <- as.data.frame(results1$x)
 pc_mgmt <- cbind(pc_mgmt, CCD)
 
-###TotalPhen###
-p3 <- glmmTMB(TotalPhen ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+#TotalPhen
+w1 <- glmmTMB(TotalPhen ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
 + PC8 +(1|site.code), data=pc_mgmt)
-summary(p3)
+summary(w1)
 #PC1                  -8693.5     2698.2  -3.222  0.00127 **
 #PC6                 -20437.0     2704.7  -7.556 4.15e-14 ***
 
 plot(TotalPhen ~ PC1, data=pc_mgmt)
 plot(TotalPhen ~ PC6, data=pc_mgmt)
 
-###PhenRich###
-p4 <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+#PhenRich
+w2 <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
               + PC8 +(1|site.code), data=pc_mgmt)
-summary(p4)
+summary(w2)
 #PC1                 -0.34937    0.14959  -2.335 0.019518 *  
 #PC5                 -0.87040    0.36264  -2.400 0.016388 *  
 #PC6                 -0.38873    0.15781  -2.463 0.013764 *  
 #PC8                 -1.02755    0.26770  -3.838 0.000124 ***
 
-plot(TotalPhen ~ PC1, data=pc_mgmt)
-plot(TotalPhen ~ PC5, data=pc_mgmt)
-plot(TotalPhen ~ PC6, data=pc_mgmt)
-plot(TotalPhen ~ PC8, data=pc_mgmt)
+plot(PhenRich ~ PC1, data=pc_mgmt)
+plot(PhenRich ~ PC5, data=pc_mgmt)
+plot(PhenRich ~ PC6, data=pc_mgmt)
+plot(PhenRich ~ PC8, data=pc_mgmt)
 
-###correlation matrix 
+#correlation matrix 
 p_phenmgmt <- dplyr::select(CCD,c("Cultivation","Herbicides","Com_Mul", "Mowing",
 "Weed_Mats", "Cover_Crops","Fire_Mgmt","Acres", "TotalPhen", "PhenRich"))
 
-
 rcorr(as.matrix(p_phenmgmt))
-
 corrplot(cor(p_phenmgmt))
 
-###SKIN###
-p.sk_mgmt <- dplyr::select(SkinD,c("Prox.Water", "Longitude","Latitude","elevation", 
-  "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
-
-#calculate principal components
-results.sk1 <- prcomp(p.sk_mgmt, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.sk1)  
-
-#display principal components
-results.sk1$x
-
-results$rotation
-#display the first six scores
-head(results.sk1$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.sk1,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.sk1)$importance
-summary(results.sk1)$importance[2,]
-
-var_explained.sk1 = results.sk1$sdev^2 / sum(results.sk1$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.sk1=var_explained.sk1)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.sk1)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-
-pc.sk_mgmt <- as.data.frame(results.sk$x)
+#SKIN#
+pc.sk_mgmt <- as.data.frame(results1$x)
 pc.sk_mgmt <- cbind(pc.sk_mgmt, SkinD)
 
 
-##TotalPhen###
-psk1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.sk_mgmt)
-summary(psk1)
-#PC2  0.00102 **     
+#TotalPhen
+sk.p3 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                 + PC8 +(1|site.code), data=pc.sk_mgmt)
+summary(sk.p3)#nothing 
+    
+#PhenRich
+sk.p4 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                 + PC8 +(1|site.code), data=pc.sk_mgmt)
+summary(sk.p4)
+#PC7                 -1.06869    0.43126  -2.478  0.01321 *  
+#PC4                 -0.57329    0.24650  -2.326  0.02003 *  
+#PC2                  0.78977    0.26295   3.003  0.00267 ** 
 
-plot(TotalPhen ~ PC2, data=pc.sk_mgmt)
-
-results.sk$rotation
-
-psk2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.sk_mgmt)
-summary(psk2)
-#nothing   
+plot(PhenRich ~ PC2, data=pc.sk_mgmt)
+plot(PhenRich ~ PC4, data=pc.sk_mgmt)
+plot(PhenRich ~ PC7, data=pc.sk_mgmt)
 
 
-###correlation matrix 
+
+#correlation matrix 
 pc.sk_phenclim <- dplyr::select(SkinD,c("Prox.Water", "Longitude","Latitude","elevation", 
-                                        "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
+"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
                                         "TotalPhen", "PhenRich"))
 
 rcorr(as.matrix(pc.sk_phenclim))
 corrplot(cor(pc.sk_phenclim))
 
 ###PULP###
-p.pu_clim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-                                   "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
 
-#calculate principal components
-results.pu <- prcomp(p.pu_clim, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.pu)  
-
-#display principal components
-results.pu$x
-
-results.pu$rotation
-#display the first six scores
-head(results.pu$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.pu,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.pu)$importance
-summary(results.pu)$importance[2,]
-
-var_explained.pu = results.pu$sdev^2 / sum(results.pu$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.pu=var_explained.pu)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.pu)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-
-pc.pu_clim <- as.data.frame(results.pu$x)
+pc.pu_clim <- as.data.frame(results1$x)
 pc.pu_clim <- cbind(pc.pu_clim, PulpD)
 
-
-##TotalPhen###
-ppu1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.pu_clim)
-summary(ppu1)
+#TotalPhen
+pu.p3 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 +PC6 + PC7 
+                + PC8 + (1|site.code), data=pc.pu_clim)
+summary(pu.p3)
 #PC1                  -1238.2      622.5  -1.989  0.04669 *  
 #PC2                  -4267.0     1082.2  -3.943 8.05e-05 ***
 #PC3                  -4064.2     1410.4  -2.882  0.00396 **
@@ -975,19 +752,24 @@ plot(TotalPhen ~ PC3, data=pc.pu_clim)
 
 results.pu$rotation
 
-ppu2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc.pu_clim)
-summary(ppu2)
-#PC2                 -0.86158    0.24963  -3.451 0.000558 ***
-#PC3                 -0.63019    0.32536  -1.937 0.052757 .     
+pu.p4 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                 + PC8 +  (1|site.code), data=pc.pu_clim)
+summary(pu.p4)
+#PC1                  -0.7012     0.2291  -3.061 0.002206 ** 
+#PC3                   0.4068     0.1369   2.971 0.002970 ** 
+#PC5                  -1.1738     0.5236  -2.242 0.024976 *  
+#PC8                  -1.4684     0.4240  -3.463 0.000533 ***    
 
-plot(PhenRich ~ PC2, data=pc.pu_clim)
+plot(PhenRich ~ PC1, data=pc.pu_clim)
 plot(PhenRich ~ PC3, data=pc.pu_clim)
+plot(PhenRich ~ PC5, data=pc.pu_clim)
+plot(PhenRich ~ PC8, data=pc.pu_clim)
 
-results.pu$rotation
+results1$rotation
 
 ###correlation matrix 
 p.pu_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-                                       "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
+  "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
                                        "TotalPhen", "PhenRich"))
 
 rcorr(as.matrix(p.pu_phenclim))
@@ -997,80 +779,49 @@ corrplot(cor(p.pu_phenclim))
 
 
 ###SEED###
-p.se_clim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-                                   "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
-
-#calculate principal components
-results.se <- prcomp(p.se_clim, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results.se)  
-
-#display principal components
-results.se$x
-
-results.se$rotation
-#display the first six scores
-head(results.se$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results.se,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results.se)$importance
-summary(results.se)$importance[2,]
-
-var_explained.se = results.se$sdev^2 / sum(results.se$sdev^2)
-
-df <- data.frame(PC=1:9, var_explained.se=var_explained.se)
-
-#create scree plot
-ggplot(df, aes(x=PC, y=var_explained.se)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-
-#PC's  5, 6, 7, 8, 9 are very low/ not worth looking at
-
-##Linear models PC x quality 
-pc.se_clim <- as.data.frame(results.se$x)
+pc.se_clim <- as.data.frame(results1$x)
 pc.se_clim <- cbind(pc.se_clim, SeedD)
 
 
-##TotalPhen###
-p.se1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4, data=pc.se_clim)
+#TotalPhen
+p.se1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                 + PC8 + (1|site.code) , data=pc.se_clim)
 summary(p.se1)
-#PC2                   -17200       6114  -2.813   0.0049 **
+#PC3                    14993       2802   5.350 8.79e-08 ***
+#PC4                    26863       5926   4.533 5.81e-06 ***
+#PC6                   -26165       5357  -4.884 1.04e-06 ***
+#PC7                   -45839      11511  -3.982 6.83e-05 ***
 
-plot(TotalPhen ~ PC2, data=pc.se_clim)
-results.se$rotation
 
-p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc.se_clim)
+plot(TotalPhen ~ PC3, data=pc.se_clim)
+plot(TotalPhen ~ PC4, data=pc.se_clim)
+plot(TotalPhen ~ PC6, data=pc.se_clim)
+plot(TotalPhen ~ PC7, data=pc.se_clim)
+
+results1$rotation
+
+p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                 + PC8 + (1|site.code) , data=pc.se_clim)
 summary(p.se2)
-#PC1                   0.3052     0.1202   2.539  0.01111 *  
-#PC2                  -1.2048     0.2112  -5.704 1.17e-08 ***
-#PC3                  -0.5668     0.2741  -2.068  0.03863 *    
+#PC4                  0.49130    0.24087   2.040  0.04139 *  
+#PC5                 -1.15560    0.44655  -2.588  0.00966 ** 
+#PC6                 -1.15902    0.26672  -4.345 1.39e-05 ***    
+#PC8                 -1.71758    0.40558  -4.235 2.29e-05 ***
+  
+plot(PhenRich ~ PC4, data=pc.se_clim)
+plot(PhenRich ~ PC5, data=pc.se_clim)
+plot(PhenRich ~ PC6, data=pc.se_clim)
+plot(PhenRich ~ PC8, data=pc.se_clim)
 
-plot(PhenRich ~ PC1, data=pc.se_clim)
-plot(PhenRich ~ PC2, data=pc.se_clim)
-plot(PhenRich ~ PC3, data=pc.se_clim)
 
-results.se$rotation
+results1$rotation
 
 ###correlation matrix 
 p.se_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-                                       "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-                                       "TotalPhen", "PhenRich"))
+ "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
+ "TotalPhen", "PhenRich"))
 
 rcorr(as.matrix(p.se_phenclim))
-
 corrplot(cor(p.se_phenclim))
 
 
@@ -1155,7 +906,7 @@ ggplot(d, aes(x = Tissue, y = PhenRich)) +
   scale_color_viridis_d()
 
 
-ggplot(d, aes(x = Tissue, y = pb2)) +
+ggplot(d, aes(x = Tissue, y = TotalPhentrans)) +
   geom_boxplot(aes(color = orchard.type)) +
   geom_smooth(method=glm, se=FALSE)+
   facet_wrap(~orchard.type)+
@@ -1199,22 +950,83 @@ multiplot(se.p1,sk.p1, pu.p1)
 
 
 
+#How do management systems interact with broad climatic changes across latitude?
+
+#phen rich 
+ggplot(CCD, aes(x=Latitude, y=PhenRich, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ggplot(CCD, aes(x=elevation, y=PhenRich, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 
+ggplot(CCD, aes(x=Longitude, y=PhenRich, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ggplot(CCD, aes(x=Prox.Water, y=PhenRich, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#total phenolics 
+ggplot(CCD, aes(x=Latitude, y=TotalPhentrans, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("Total Phenolics") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ggplot(CCD, aes(x=elevation, y=TotalPhentrans, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ggplot(CCD, aes(x=Longitude, y=TotalPhentrans, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ggplot(CCD, aes(x=Prox.Water, y=TotalPhentrans, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+ggplot(pc_clim, aes(x=PC2, y=TotalPhentrans, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("PhenRich") +
+  xlab ("Elevation (m)")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 
 #Multiple plot function----------------------------------------------------------------------------------------------
