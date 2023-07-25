@@ -18,6 +18,12 @@ library(readr)
 Tree <- read_csv("Tree Level Data.csv")
 Orchard <- read_csv("Orchard Level Data.csv")
 
+#convert collumns into factors 
+
+Orchard %>% mutate_at(c(13:19), as.factor)
+Orchard %>% mutate_at(c(21:38), as.factor)
+view(Orchard)
+
 #combine data sheets
 View(Tree)
 Tree <- Tree %>%
@@ -33,7 +39,6 @@ Tree <- Tree %>%
 c <- left_join(Tree, Orchard, by="orchard.num")
 
 view(c)
-
 
 #Question 1 
 #How do management systems (organic or conventional) shape fruit quality?-------
@@ -406,43 +411,43 @@ corrplot(cor(p_mgmt))
 
 #Which pest or diseases presence has the most significant affect on fruit quality-----
 
-names(c)
-
 p_pest <- dplyr::select(c,c("Anthracnose","European Canker","Bullseye Rot", "Powdery mildew",     
 "Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Tree Borer",
-"Cedar Apple Rust","Bitter Rot","Leaf Roller","Horned Caterpillars","Trhips","Stemble",
-"Scale", "Pest_Index"))
+"Cedar Apple Rust","Bitter Rot","Leaf Roller","Trhips",
+"Scale"))
 
+p_pest[is.na(p_pest)] <- 1
+view(p_pest)
 
 #calculate principal components
 results2 <- prcomp(p_pest, scale = TRUE)
 
 #this gives you the % variance explained
-summary(results1)  
+summary(results2)  
 
 #display principal components
-results1$x
+results2$x
 
-results1$rotation
+results2$rotation
 #display the first six scores
-head(results1$x)
+head(results2$x)
 
 #this plots the results of the PCAs into a two dimensional representation 
-biplot(results1,
+biplot(results2,
        col = c('darkblue', 'red'),
        scale = TRUE, xlabs = rep("*", 24))
 
 
 #calculate total variance explained by each principal component
-summary(results1)$importance
-summary(results1)$importance[2,]
+summary(results2)$importance
+summary(results2)$importance[2,]
 
-var_explained1 = results1$sdev^2 / sum(results1$sdev^2)
+var_explained2 = results2$sdev^2 / sum(results2$sdev^2)
 
-df1 <- data.frame(PC=1:8, var_explained1=var_explained1)
+df2 <- data.frame(PC=1:16, var_explained2=var_explained2)
 
 #create scree plot
-ggplot(df1, aes(x=PC, y=var_explained1)) + 
+ggplot(df2, aes(x=PC, y=var_explained2)) + 
   geom_line() + 
   geom_point()+
   xlab("Principal Component") + 
@@ -450,11 +455,106 @@ ggplot(df1, aes(x=PC, y=var_explained1)) +
   ggtitle("Scree Plot") +
   ylim(0, 1)
 
-
+#we'll use 1 through 8 
 ##Linear models PC x quality 
 
-pc_mgmt <- as.data.frame(results1$x)
-pc_mgmt <- cbind(pc_mgmt, c
+p_pest <- as.data.frame(results2$x)
+p_pest <- cbind(p_pest, c)
+
+###Firmness###
+f1 <- glmmTMB(Firmness ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+              + PC8 +(1|site.code), data=p_pest)
+summary(f1)
+#orchard.typeOrganic   2.0141     0.4691   4.293 1.76e-05 ***
+#PC5                   1.6039     0.4989   3.215   0.0013 ** 
+#PC6                  -2.8775     0.5627  -5.114 3.16e-07 ***
+#PC8                  -2.4218     0.8705  -2.782   0.0054 ** 
+
+
+plot(Firmness ~ PC5, data=p_pest)
+plot(Firmness ~ PC6, data=p_pest)
+plot(Firmness ~ PC8, data=p_pest)
+
+results2$rotation
+
+#pest index alone 
+f2 <- glmmTMB(Firmness ~ Pest_Index*orchard.type +(1|site.code), data=c)
+summary(f2)
+Anova(f2)
+#nothing 
+
+###SSC###
+ssc1 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+              + PC8 +(1|site.code), data=p_pest)
+summary(ssc1)
+#PC5                  0.7325145  0.1795326   4.080  4.5e-05 ***
+#PC6                  0.5875009  0.3214876   1.827 0.067633 .  
+#PC7                  1.0489073  0.3187258   3.291 0.000999 ***
+#PC8                 -0.9180447  0.4629784  -1.983 0.047377 *  
+
+
+plot(SSC ~ PC5, data=p_pest)
+plot(SSC ~ PC6, data=p_pest)
+plot(SSC ~ PC7, data=p_pest)
+plot(SSC ~ PC8, data=p_pest)
+
+results2$rotation
+
+#pest index alone 
+ssc2 <- glmmTMB(SSC ~ Pest_Index*orchard.type +(1|site.code), data=c)
+summary(ssc2)
+Anova(ssc2)
+#Pest_Index:orchard.type 3.0044  1    0.08304 .
+
+###avgwgt###
+wgt1 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                + PC8 +(1|site.code), data=p_pest)
+summary(wgt1)
+#PC1                   3.5095     1.8541   1.893 0.058380 . 
+#PC3                   7.3827     2.8087   2.629 0.008575 **   
+#PC5                  -9.8890     2.6309  -3.759 0.000171 ***
+#PC6                 -12.5362     2.7650  -4.534 5.79e-06 ***
+#PC8                   9.8685     3.3920   2.909 0.003622 ** 
+
+
+plot(avgwgt ~ PC1, data=p_pest)
+plot(avgwgt ~ PC3, data=p_pest)
+plot(avgwgt ~ PC5, data=p_pest)
+plot(avgwgt ~ PC6, data=p_pest)
+plot(avgwgt ~ PC8, data=p_pest)
+
+results2$rotation
+
+#pest index alone 
+wgt2 <- glmmTMB(avgwgt ~ Pest_Index*orchard.type +(1|site.code), data=c)
+summary(wgt2)
+Anova(wgt2)
+#nothing
+
+
+###maturity.index###
+mi1 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
+                + PC8 +(1|site.code), data=p_pest)
+summary(mi1)
+#PC1                  0.152563   0.075699   2.015  0.04386 *  
+#PC2                  0.232106   0.086275   2.690  0.00714 ** 
+#PC4                  0.137820   0.064195   2.147  0.03180 * 
+#PC8                  0.334125   0.141356   2.364  0.01809 *  
+
+
+plot(maturity.index ~ PC1, data=p_pest)
+plot(maturity.index ~ PC2, data=p_pest)
+plot(maturity.index ~ PC4, data=p_pest)
+plot(maturity.index ~ PC8, data=p_pest)
+
+
+results2$rotation
+
+#pest index alone 
+mi2 <- glmmTMB(maturity.index ~ Pest_Index*orchard.type +(1|site.code), data=c)
+summary(mi2)
+Anova(mi2)
+#Pest_Index              10.9447  1  0.0009387 ***
 
 
 
