@@ -18,10 +18,15 @@ library(readr)
 Tree <- read_csv("Tree Level Data.csv")
 Orchard <- read_csv("Orchard Level Data.csv")
 
-#convert collumns into factors 
+#convert columns into factors 
 
-Orchard %>% mutate_at(c(13:19), as.factor)
-Orchard %>% mutate_at(c(21:38), as.factor)
+Orchard$Com_Mul <- Orchard$Com_Mul %>% as.factor() %>% as.numeric()
+Orchard$Cultivation <- Orchard$Cultivation %>% as.factor() %>% as.numeric()
+Orchard$Herbicides <- Orchard$Herbicides %>% as.factor() %>% as.numeric()
+Orchard$Fire_Mgmt <- Orchard$Fire_Mgmt %>% as.factor() %>% as.numeric()
+Orchard$Weed_Mats <- Orchard$Weed_Mats %>% as.factor() %>% as.numeric()
+Orchard$Cover_Crops <- Orchard$Cover_Crops %>% as.factor() %>% as.numeric()
+Orchard$Mowing <- Orchard$Mowing %>% as.factor() %>% as.numeric()
 view(Orchard)
 
 #combine data sheets
@@ -209,15 +214,13 @@ hist(c$maturity.index)
 p1 <- glmmTMB(Firmness ~ PC1 + PC2 + PC3 + PC4 + PC5+ (1|site.code), data=pc_clim)
 summary(p1)
 #PC1  2.26e-10 ***
-#PC2  0.7698    
 #PC3  1.18e-06 ***
-#PC4  0.2002    
 #PC5  0.0267 *  
 
 #strong positive effects of PC1 + PC2 and strong negative effect of PC3
 plot(Firmness ~ PC1, data=pc_clim)
-plot(Firmness ~ PC2, data=pc_clim)
 plot(Firmness ~ PC3, data=pc_clim)
+plot(Firmness ~ PC5, data=pc_clim)
 
 #So, to interpret this you go back to look at the loading on each PC axis.
 results$rotation
@@ -230,7 +233,6 @@ summary(P2)
 #PC1 2e-16 ***
 #PC2 0.00407 ** 
 #PC3 0.00172 ** 
-#PC4 0.49452    
 #PC5 0.00243 ** 
 
 plot(SSC ~ PC1, data=pc_clim)
@@ -245,12 +247,9 @@ results$rotation
 ###AVGWGT
 p3 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc_clim)
 summary(p3)
-#PC1 0.2898    
 #PC2 0.0502 .  
 #PC3 0.0463 *  
 #PC4 0.0378 *  
-#PC5 0.6157
-
 
 plot(avgwgt ~ PC2, data=pc_clim)
 plot(avgwgt ~ PC3, data=pc_clim)
@@ -263,10 +262,8 @@ results$rotation
 p4 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc_clim)
 summary(p4)
 #PC1 0.000889 ***
-#PC2 0.649219    
-#PC3 0.268255    
 #PC4 0.025583 *  
-#PC5 0.350911 
+ 
 
 plot(maturity.index ~ PC1, data=pc_clim)
 plot(maturity.index ~ PC4, data=pc_clim)
@@ -371,6 +368,7 @@ results1$rotation
 p8 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
               + PC8 + (1|site.code), data=pc_mgmt)
 summary(p8)
+#orchard.typeOrganic  7.54e-06 ***
 #PC1 0.0347 *
 #PC6 0.0525 .    
 #PC7 0.0237 *    
@@ -398,15 +396,6 @@ library(corrplot)
 corrplot(cor(p_mgmt))
 #red = negative, blue = positive 
 #big = high, small = low
-
-
-
-
-
-
-
-
-
 
 
 #Which pest or diseases presence has the most significant affect on fruit quality-----
@@ -604,8 +593,8 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   }
 }
 
-#Q1 Figures---------------------------------------------------------------
-###mgmt and physical quality alone 
+#Figures---------------------------------------------------------------
+#How do management systems (organic or conventional) shape fruit quality?
 b1 <- ggplot(c, aes(x=orchard.type, y=SSC, color=orchard.type))+
   theme_classic() +
   geom_boxplot(outlier.shape=NA)+
@@ -645,41 +634,61 @@ b4
 
 multiplot(b1,b2,b3,b4, cols=2)
 
-###physical quality, mgmt, and proxy climatic variables 
+#How do management systems interact with broad climatic changes across latitude?
 
-ssc1 = ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type)) +
+lat1 = ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type)) +
   theme_classic() +
   geom_point() +
   ylab ("SSC") +
   xlab ("Latitude")+
   geom_smooth(method=glm, se=FALSE)+
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-ssc1
+lat1
 
 
-ssc2 = ggplot(c, aes(x=elevation, y=SSC, color=orchard.type)) +
+lat2 = ggplot(c, aes(x=Latitude, y=Firmness, color=orchard.type)) +
   theme_classic() +
   geom_point() +
-  ylab ("SSC") +
-  xlab ("Elevation (m)")+
+  ylab ("Firmness") +
+  xlab ("Latitude)")+
   geom_smooth(method=glm, se=FALSE)+
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-ssc2
+lat2
 
 
-avgwgt1 = ggplot(c, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+lat3 = ggplot(c, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   theme_classic() +
   geom_point() +
   ylab ("Average Weight (g)") +
   xlab ("Latitude")+
   geom_smooth(method=glm, se=FALSE)+
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-avgwgt1
+lat3
 
-#Q2 Figures ------------------------------------------------------------
 
-#looking at fixed variables with avgwgt. It seems that as temps increase, 
-#size increases in all but more with organic apples 
+lat4 = ggplot(c, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("Maturity Index") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+lat4
+
+multiplot(lat1, lat2, lat3, lat4, cols=2)
+
+elv1 = ggplot(c, aes(x=elevation, y=avgwgt, color=orchard.type)) +
+  theme_classic() +
+  geom_point() +
+  ylab ("Avergae Weight") +
+  xlab ("Elevation")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+elv1
+
+
+
+#Which abiotic factors are the most important drivers of fruit quality?
 fixed1 = ggplot(c, aes(x=Szn.Max.Avg, y=avgwgt, color=orchard.type)) +
   theme_classic() +
   geom_point() +
@@ -707,13 +716,16 @@ fixed3 = ggplot(c, aes(x=Szn.Temp.Avg, y=avgwgt, color=orchard.type)) +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 fixed3
 
-ggplot(c, aes(x = Szn.UVI, y = SSC)) +
+
+
+
+#PCA MGMT traits 
+ggplot(c, aes(x = Herbicides, y = maturity.index)) +
   geom_point(aes(color = orchard.type)) +
   geom_smooth(method=glm, se=FALSE)+
   facet_wrap(~orchard.type)+
   scale_color_viridis_d()
 
-#Q3 Figures-------------------------------------------------------------
 
 
 
