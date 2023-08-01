@@ -10,24 +10,17 @@ library(dplyr)
 library(randomForest)
 library(glmmTMB) #mixed models
 library(car) #mixed models summary tables
-library(vegan) #multivariate stats
-library(Boruta) #random forest models
 library("purrr")
+library(Hmisc) #correlation matrix
+library(corrplot)#plotting correlation matrix
 library(readr)
+library(GGally)
 #Read in data-------------------------------------------------------------------
 Tree <- read_csv("Tree Level Data.csv")
 Orchard <- read_csv("Orchard Level Data.csv")
 
-#convert columns into factors 
-
-Orchard$Com_Mul <- Orchard$Com_Mul %>% as.factor() %>% as.numeric()
-Orchard$Cultivation <- Orchard$Cultivation %>% as.factor() %>% as.numeric()
-Orchard$Herbicides <- Orchard$Herbicides %>% as.factor() %>% as.numeric()
-Orchard$Fire_Mgmt <- Orchard$Fire_Mgmt %>% as.factor() %>% as.numeric()
-Orchard$Weed_Mats <- Orchard$Weed_Mats %>% as.factor() %>% as.numeric()
-Orchard$Cover_Crops <- Orchard$Cover_Crops %>% as.factor() %>% as.numeric()
-Orchard$Mowing <- Orchard$Mowing %>% as.factor() %>% as.numeric()
-view(Orchard)
+Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
+Tree$orchard.num <- as.factor(as.character(Tree$orchard.num))
 
 #combine data sheets
 View(Tree)
@@ -37,34 +30,16 @@ Tree <- Tree %>%
 Tree <- Tree %>% 
   dplyr::select(-c(5:6))
 
-Tree <- Tree %>%
+Tree.Sum <- Tree %>%
   group_by(orchard.num) %>%
   summarise_at(c("avgwgt", "Firmness", "SSC", "maturity.index"), mean, na.rm = TRUE)
 
-c <- left_join(Tree, Orchard, by="orchard.num")
+c <- left_join(Tree.Sum, Orchard, by="orchard.num")
 
 view(c)
 
-#Question 1 
-#How do management systems (organic or conventional) shape fruit quality?-------
-#analysis: 1 linear model per trait 
-m1<- glmmTMB(SSC ~ orchard.type + (1|site.code/orchard.num), data=c)
-summary(m1)
-Anova(m1) #p=0.294
-
-m2<- glmmTMB(Firmness ~ orchard.type + (1|site.code/orchard.num), data=c)
-summary(m2)
-Anova(m2) #p=0.9851
-
-m3<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=c)
-summary(m3)
-Anova(m3) #p=0.8712
-
-m4<- glmmTMB(maturity.index ~ orchard.type + (1|site.code/orchard.num), data=c)
-summary(m4)
-Anova(m4) #p=0.6817
-
-#aggregate the data so that we have some idea of the differences between orchard types
+#aggregate the data-------------------------------------------------------------
+#so that we have some idea of the differences between orchard types
 aggregate(SSC~orchard.type, data=c, FUN=mean)
 #Conventional 10.88182
 #Organic 11.78462
@@ -82,81 +57,117 @@ aggregate(maturity.index~orchard.type, data=c, FUN=mean)
 #Organic 4.138462
 
 #How do management systems interact with broad climatic changes across latitude?----
-#analysis: 1 linear model per proxy trait (lat, long, elev, prox to water) per fruit trait 
-###SSC###
-s1 <- glmmTMB(SSC ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(s1)
-Anova(s1)#Latitude p=1.906e-05 
+#Analysis: Using GLMMs with tree level data to explore how measured qualities interact
+#across latitude 
 
-s2<- glmmTMB(SSC ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
-summary(s2)
-Anova(s2)
+#creating a new data set to work with 
+TreeLat <- left_join(Tree, Orchard[,c(2,4)], by="orchard.num")
 
-s3<- glmmTMB(SSC ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(s3)
-Anova(s3)
+#SSC
+Lat1<- glmmTMB(SSC ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+summary(Lat1)
+Anova(Lat1) 
+#orchard.type           0.5016  1     0.4788    
+#Latitude              18.2814  1  1.906e-05 ***
+#orchard.type:Latitude  0.2196  1     0.6393  
 
-s4<- glmmTMB(SSC ~ Prox.Water*orchard.type + (1|site.code/orchard.num), data=c)
-summary(s4)
-Anova(s4)
+hist(resid(Lat1))  #looks great
+diagnose(Lat1)
 
-###Firmness###
-f1 <- glmmTMB(Firmness ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(f1)
-Anova(f1)#Latitude p=4.112e-09 ***
+#Firmness 
+Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+summary(Lat2)
+Anova(Lat2)
+#orchard.type           0.0828  1     0.7735    
+#Latitude              34.5700  1  4.112e-09 ***
+#orchard.type:Latitude  0.9233  1     0.3366 
+
+hist(resid(Lat2))  #looks great
+diagnose(Lat2)
+
+#Average Weight 
+Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+summary(Lat3)
+#orchard.typeOrganic           142.408     45.320   3.142  0.00168 **
+
+Anova(Lat3) 
+#orchard.type          0.1535  1   0.695206   
+#Latitude              0.3713  1   0.542288   
+#orchard.type:Latitude 9.7210  1   0.001822 **
+
+hist(resid(Lat3))  #looks great
+diagnose(Lat3)
+##strongest interaction 
+
+#Maturity Index 
+#using poisson distribution 
+Lat4<- glmmTMB(maturity.index ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+              data=TreeLat, family="compois")
+summary(Lat4)
+Anova(Lat4)  
+#orchard.type          0.0051  1    0.94320  
+#Latitude              4.5525  1    0.03287 *
+#orchard.type:Latitude 1.2588  1    0.26188 
+
+hist(resid(Lat4)) 
+diagnose(Lat4)
 
 
-f2<- glmmTMB(Firmness ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
-summary(f2)
-Anova(f2)
-
-f3<- glmmTMB(Firmness ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(f3)
-Anova(f3)
-
-f4<- glmmTMB(Firmness ~ Prox.Water*orchard.type + (1|site.code), data=c)
-summary(f4)
-Anova(f4)
-
-
-###Average Weight
-w1 <- glmmTMB(avgwgt ~ Latitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(w1)
-Anova(w1)#Latitude:orchard.type p=0.001822 **
-
-w2<- glmmTMB(avgwgt ~ elevation*orchard.type + (1|site.code/orchard.num), data=c)
-summary(w2)
-Anova(w2) #elevation p=0.02534 *
-
-w3<- glmmTMB(avgwgt ~ Longitude*orchard.type + (1|site.code/orchard.num), data=c)
-summary(w3)
-Anova(w3)
-
-w4<- glmmTMB(avgwgt ~ Prox.Water*orchard.type + (1|site.code), data=c)
-summary(w4)
-Anova(w4)
+#Figure: Average Weight x Latitude 
+plot1 = ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+  geom_point() +
+  ylab ("Average Weight (g)") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+plot1
+#organic weight decreases as latitude increases 
+#conventional weight increases as latitude increases 
 
 
-#Maturity  
-mt1 <- glmmTMB(maturity.index ~ Latitude*orchard.type + (1|site.code), data=c)
-summary(mt1)
-Anova(mt1)#Latitude 0.05779 .
 
-mt2<- glmmTMB(maturity.index ~ elevation*orchard.type + (1|site.code), data=c)
-summary(mt2)
-Anova(mt2)
+###Investigating Latitude and Average weight 
+#Splitting latitude in high and low 
+Tree_low <- filter(TreeLat, Latitude<42)
+Tree_high <- filter(TreeLat, Latitude>42)
 
-mt3<- glmmTMB(maturity.index ~ Longitude*orchard.type + (1|site.code), data=c)
-summary(mt3)
-Anova(mt3)
+#Low
+avg_low<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_low)
+summary(avg_low)
+Anova(avg_low) 
 
-mt4<- glmmTMB(maturity.index ~ Prox.Water*orchard.type + (1|site.code), data=c)
-summary(mt4)
-Anova(mt4)
+avg_hgh<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_high)
+summary(avg_hgh)
+Anova(avg_hgh)
+#orchard.type 3.6794  1    0.05509 .
+
+
+#Figure: Avg weight boxplots at high and low latitudes 
+avglow <- ggplot(Tree_low, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  xlab ("Latitude < 42 ") +
+  ylab ("Average Weight") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+avglow
+
+avghigh <- ggplot(Tree_high, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  xlab ("Latitude > 42 ") +
+  ylab ("Average Weight") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+avghigh
+
+multiplot(avglow, avghigh, cols=2)
+
 
 #Which abiotic factors are the most important drivers of fruit quality?---------
 #Analysis: principle components analysis followed by PC regression with each variable
-names(c)
 p_clim <- dplyr::select(c,c("Prox.Water", "Longitude","Latitude","elevation", 
 "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
 
@@ -273,277 +284,223 @@ results$rotation
 
 
 ###correlation matrix
-library(Hmisc)
 #The first matrix shows the correlation coefficients between the variables  
 #the second matrix shows the corresponding p-values.
 rcorr(as.matrix(p_clim))
-#any value below 0.05 is not a statistically significant relationship 
-# need to sort through and organzie these values 
 
 #now let's visualize this 
-library(corrplot)
 corrplot(cor(p_clim))
-#red = negative, blue = positive 
-#big = high, small = low
+
+testRes = cor.mtest(p_clim, conf.level = 0.95)
+
+## add all p-values
+corrplot(cor(p_clim), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
+
+## add significant level stars
+corrplot(cor(p_clim), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
+         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
 
 
 #Which specific management practices are the most important drivers of fruit quality?----
-#Analysis: principle components analysis followed by PC regression with each variable
-names(c)
-p_mgmt <- dplyr::select(c,c("Cultivation","Herbicides","Com_Mul", "Mowing",
-"Weed_Mats", "Cover_Crops","Fire_Mgmt","Acres"))
+#GLMMs with all management variables and physical traitss 
 
-#calculate principal components
-results1 <- prcomp(p_mgmt, scale = TRUE)
+#SSC
+mgmt1 <- glmmTMB(SSC ~ Cultivation + Herbicides + Com_Mul + Mowing +
+               Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+             data=c)
+summary(mgmt1)
+Anova(mgmt1)
+#Herbicides  47.9815  1  4.303e-12 ***
 
-#this gives you the % variance explained
-summary(results1)  
+plot(SSC ~ as.factor(Herbicides), data=c)
 
-#display principal components
-results1$x
-
-results1$rotation
-#display the first six scores
-head(results1$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results1,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results1)$importance
-summary(results1)$importance[2,]
-
-var_explained1 = results1$sdev^2 / sum(results1$sdev^2)
-
-df1 <- data.frame(PC=1:8, var_explained1=var_explained1)
-
-#create scree plot
-ggplot(df1, aes(x=PC, y=var_explained1)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
+#avgwgt
+mgmt2 <- glmmTMB(avgwgt ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=c)
+summary(mgmt2)
+Anova(mgmt2)
+#Acres       11.9567  1  0.0005445 ***
+#Cultivation  3.9132  1  0.0479077 *  
+  
+plot(avgwgt ~ as.factor(Cultivation), data=c)
+#avgwgt higher when using cultivation 
+ggplot(c, aes(x=Acres, y=avgwgt, color=orchard.type)) +
+  geom_point() +
+  ylab ("Average Weight (g)") +
+  xlab ("Acres")+
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+#increased acregae results in higher weights 
 
 
-##Linear models PC x quality 
+#Firmness 
+mgmt3 <- glmmTMB(Firmness ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=c)
+summary(mgmt3)
+Anova(mgmt3)
+#Herbicides  4.5342  1    0.03322 *
+plot(Firmness ~ as.factor(Herbicides), data=c)
+#firmness higher when not using pesticides 
 
-pc_mgmt <- as.data.frame(results1$x)
-pc_mgmt <- cbind(pc_mgmt, c)
-
-###Firmness###
-p5 <- glmmTMB(Firmness ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=pc_mgmt)
-summary(p5)
-#nothing
-
-###SSC###
-P6 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 + (1|site.code), data= pc_mgmt)
-summary(P6)
-#nothing
-
-###AVGWGT
-p7 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 + (1|site.code), data=pc_mgmt)
-summary(p7)
-#PC3                   -8.477      3.704  -2.289   0.0221 *  
-#PC4                   -7.329      4.423  -1.657   0.0975 .  
-#PC5                   13.522      5.644   2.396   0.0166 *  
-#PC6                  -13.325      5.891  -2.262   0.0237 *  
-
-plot(avgwgt ~ PC3, data=pc_mgmt)
-plot(avgwgt ~ PC4, data=pc_mgmt)
-plot(avgwgt ~ PC5, data=pc_mgmt)
-plot(avgwgt ~ PC6, data=pc_mgmt)
-
-results1$rotation
+#Maturity Index 
+mgmt4 <- glmmTMB(maturity.index ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=c)
+summary(mgmt4)
+Anova(mgmt4)
+#Herbicides  4.7331  1    0.02959 *
+#Mowing      3.9845  1    0.04592 *
+#Weed_Mats   4.9615  1    0.02592 *
+#Acres       4.4712  1    0.03447 *
 
 
-###Maturity Index 
-p8 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 + (1|site.code), data=pc_mgmt)
-summary(p8)
-#orchard.typeOrganic  7.54e-06 ***
-#PC1 0.0347 *
-#PC6 0.0525 .    
-#PC7 0.0237 *    
-#PC8 0.0671 . 
 
 
-plot(maturity.index ~ PC1, data=pc_mgmt)
-plot(maturity.index ~ PC6, data=pc_mgmt)
-plot(maturity.index ~ PC7, data=pc_mgmt)
-plot(maturity.index ~ PC8, data=pc_mgmt)
-
-results1$rotation
-
-
-###correlation matrix 
-library(Hmisc)
-#The first matrix shows the correlation coefficients between the variables  
-#the second matrix shows the corresponding p-values.
-rcorr(as.matrix(p_mgmt))
-#any value below 0.05 is not a statistically significant relationship 
-# need to sort through and organzie these values 
-
-#now let's visualize this 
-library(corrplot)
-corrplot(cor(p_mgmt))
-#red = negative, blue = positive 
-#big = high, small = low
 
 
 #Which pest or diseases presence has the most significant affect on fruit quality-----
 
-p_pest <- dplyr::select(c,c("Anthracnose","European Canker","Bullseye Rot", "Powdery mildew",     
-"Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Tree Borer",
-"Cedar Apple Rust","Bitter Rot","Leaf Roller","Trhips",
-"Scale"))
+#visualize pest data in indices 
+ggpairs(c, columns=25:42) 
 
-p_pest[is.na(p_pest)] <- 1
-view(p_pest)
+d <- pivot_longer(data=c, cols=25:42, names_to="pest", values_to="index")
 
-#calculate principal components
-results2 <- prcomp(p_pest, scale = TRUE)
+ggplot(d, aes(x=pest, y=index))+
+  geom_boxplot()+
+  geom_jitter(width=0.2, height=0.1)
 
-#this gives you the % variance explained
-summary(results2)  
+#removing everything that doesn't pass 3 on index 
+#what were left with: 
+#pests: aphids, apple maggots, coddling moth, 
+#disease: apple scab, bitter rot, fireblight, powdery mildew, root rot 
 
-#display principal components
-results2$x
+#correlation matrix
+p_pest <- dplyr::select(c,c("Powdery mildew",     
+"Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Bitter Rot"))
 
-results2$rotation
-#display the first six scores
-head(results2$x)
+rcorr(as.matrix(p_pest))
+corrplot(cor(p_pest))
 
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results2,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
+testRes = cor.mtest(p_pest, conf.level = 0.95)
 
+#add all p-values
+corrplot(cor(p_pest), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
 
-#calculate total variance explained by each principal component
-summary(results2)$importance
-summary(results2)$importance[2,]
-
-var_explained2 = results2$sdev^2 / sum(results2$sdev^2)
-
-df2 <- data.frame(PC=1:16, var_explained2=var_explained2)
-
-#create scree plot
-ggplot(df2, aes(x=PC, y=var_explained2)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-#we'll use 1 through 8 
-##Linear models PC x quality 
-
-p_pest <- as.data.frame(results2$x)
-p_pest <- cbind(p_pest, c)
-
-###Firmness###
-f1 <- glmmTMB(Firmness ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=p_pest)
-summary(f1)
-#orchard.typeOrganic   2.0141     0.4691   4.293 1.76e-05 ***
-#PC5                   1.6039     0.4989   3.215   0.0013 ** 
-#PC6                  -2.8775     0.5627  -5.114 3.16e-07 ***
-#PC8                  -2.4218     0.8705  -2.782   0.0054 ** 
+#add significant level stars
+corrplot(cor(p_pest), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
+         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
 
 
-plot(Firmness ~ PC5, data=p_pest)
-plot(Firmness ~ PC6, data=p_pest)
-plot(Firmness ~ PC8, data=p_pest)
+#strong relationships between: 
+#apple scab and root rot 
+#apple scab and coddling moth
+#aphids and root rot 
+#aphids and maggots
+#maggots and coddling moth 
 
-results2$rotation
+#GLMMs models 
+applemaggots= c$`Apple Maggots`
+codmoth = c$`Codling Moth`
+powmil= c$`Powdery mildew`
+bitterrot= c$`Bitter Rot`
+applescab=c$`Apple scab`
+rootrot= c$`Root Rot`
+fireblight= c$`Fire Blight`
 
-#pest index alone 
-f2 <- glmmTMB(Firmness ~ Pest_Index*orchard.type +(1|site.code), data=c)
-summary(f2)
-Anova(f2)
-#nothing 
 
 ###SSC###
-ssc1 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=p_pest)
-summary(ssc1)
-#PC5                  0.7325145  0.1795326   4.080  4.5e-05 ***
-#PC6                  0.5875009  0.3214876   1.827 0.067633 .  
-#PC7                  1.0489073  0.3187258   3.291 0.000999 ***
-#PC8                 -0.9180447  0.4629784  -1.983 0.047377 *  
+ssc_pest <- glmmTMB(SSC ~ Aphids+applemaggots+codmoth+
+powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                 data=c)
+summary(ssc_pest)
+Anova(ssc_pest)
+#fireblight   15.1670  1  9.841e-05 ***
 
+ggplot(c, aes(x=fireblight, y=SSC, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#lower SSC with lower reported fireblight
 
-plot(SSC ~ PC5, data=p_pest)
-plot(SSC ~ PC6, data=p_pest)
-plot(SSC ~ PC7, data=p_pest)
-plot(SSC ~ PC8, data=p_pest)
+ssc_pressure <- glmmTMB(SSC ~ orchard.type*Pest_Index+ (1|site.code), 
+                    data=c)
+summary(ssc_pressure)
+Anova(ssc_pressure)
+#orchard.type:Pest_Index 3.0044  1    0.08304 .
 
-results2$rotation
-
-#pest index alone 
-ssc2 <- glmmTMB(SSC ~ Pest_Index*orchard.type +(1|site.code), data=c)
-summary(ssc2)
-Anova(ssc2)
-#Pest_Index:orchard.type 3.0044  1    0.08304 .
+ggplot(c, aes(x=Pest_Index, y=SSC, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#higher SSC in orangic orchards with high pest indexes 
 
 ###avgwgt###
-wgt1 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                + PC8 +(1|site.code), data=p_pest)
-summary(wgt1)
-#PC1                   3.5095     1.8541   1.893 0.058380 . 
-#PC3                   7.3827     2.8087   2.629 0.008575 **   
-#PC5                  -9.8890     2.6309  -3.759 0.000171 ***
-#PC6                 -12.5362     2.7650  -4.534 5.79e-06 ***
-#PC8                   9.8685     3.3920   2.909 0.003622 ** 
+wgt_pest <- glmmTMB(avgwgt ~ Aphids+applemaggots+codmoth+
+ powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                    data=c)
+summary(wgt_pest)
+Anova(wgt_pest)
+#rootrot      8.0041  1   0.004667 **
+#fireblight   4.6472  1   0.031103 *
 
 
-plot(avgwgt ~ PC1, data=p_pest)
-plot(avgwgt ~ PC3, data=p_pest)
-plot(avgwgt ~ PC5, data=p_pest)
-plot(avgwgt ~ PC6, data=p_pest)
-plot(avgwgt ~ PC8, data=p_pest)
+ggplot(c, aes(x=fireblight, y=avgwgt, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#avgwgt decrease as fireblight increases 
 
-results2$rotation
-
-#pest index alone 
-wgt2 <- glmmTMB(avgwgt ~ Pest_Index*orchard.type +(1|site.code), data=c)
-summary(wgt2)
-Anova(wgt2)
-#nothing
+ggplot(c, aes(x=rootrot, y=avgwgt, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 
-###maturity.index###
-mi1 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                + PC8 +(1|site.code), data=p_pest)
-summary(mi1)
-#PC1                  0.152563   0.075699   2.015  0.04386 *  
-#PC2                  0.232106   0.086275   2.690  0.00714 ** 
-#PC4                  0.137820   0.064195   2.147  0.03180 * 
-#PC8                  0.334125   0.141356   2.364  0.01809 *  
+wgt_pressure <- glmmTMB(avgwgt ~ orchard.type*Pest_Index+ (1|site.code), 
+                        data=c)
+summary(wgt_pressure)
+Anova(wgt_pressure)
+#nothing 
+
+###firmness###
+frm_pest <- glmmTMB(Firmness ~ Aphids+applemaggots+codmoth+
+powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                    data=c)
+summary(frm_pest)
+Anova(frm_pest)
+#Aphids       5.6389  1    0.01757 *
+#applemaggots 3.1469  1    0.07607 .
+#codmoth      3.3438  1    0.06746 .
 
 
-plot(maturity.index ~ PC1, data=p_pest)
-plot(maturity.index ~ PC2, data=p_pest)
-plot(maturity.index ~ PC4, data=p_pest)
-plot(maturity.index ~ PC8, data=p_pest)
+#pest index 
+frm_pressure <- glmmTMB(Firmness ~ orchard.type*Pest_Index+ (1|site.code), 
+                        data=c)
+summary(frm_pressure)
+Anova(frm_pressure)
+#nothing 
 
 
-results2$rotation
 
-#pest index alone 
-mi2 <- glmmTMB(maturity.index ~ Pest_Index*orchard.type +(1|site.code), data=c)
-summary(mi2)
-Anova(mi2)
+###maturity###
+mat_pest <- glmmTMB(maturity.index ~ Aphids+applemaggots+codmoth+
+powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                    data=c)
+summary(mat_pest)
+Anova(mat_pest)
+#nothing 
+
+mat_pressure <- glmmTMB(maturity.index ~ orchard.type*Pest_Index+ (1|site.code), 
+                        data=c)
+summary(mat_pressure)
+Anova(mat_pressure)
 #Pest_Index              10.9447  1  0.0009387 ***
+
+ggplot(c, aes(x=Pest_Index, y=maturity.index, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+
 
 
 
@@ -592,140 +549,3 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
-
-#Figures---------------------------------------------------------------
-#How do management systems (organic or conventional) shape fruit quality?
-b1 <- ggplot(c, aes(x=orchard.type, y=SSC, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("SOLUBLE SUGAE CONTENT") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-b1
-
-b2 <- ggplot(c, aes(x=orchard.type, y
-                    =Firmness, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Firmness (N)") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-b2
-
-b3 <- ggplot(c, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Average Apple Weight (g)") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-b3
-
-b4 <- ggplot(c, aes(x=orchard.type, y=maturity.index, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Maturity Index") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-b4
-
-multiplot(b1,b2,b3,b4, cols=2)
-
-#How do management systems interact with broad climatic changes across latitude?
-
-lat1 = ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("SSC") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-lat1
-
-
-lat2 = ggplot(c, aes(x=Latitude, y=Firmness, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("Firmness") +
-  xlab ("Latitude)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-lat2
-
-
-lat3 = ggplot(c, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("Average Weight (g)") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-lat3
-
-
-lat4 = ggplot(c, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("Maturity Index") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-lat4
-
-multiplot(lat1, lat2, lat3, lat4, cols=2)
-
-elv1 = ggplot(c, aes(x=elevation, y=avgwgt, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("Avergae Weight") +
-  xlab ("Elevation")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-elv1
-
-
-
-#Which abiotic factors are the most important drivers of fruit quality?
-fixed1 = ggplot(c, aes(x=Szn.Max.Avg, y=avgwgt, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("SSC") +
-  xlab ("Max Temp Avg")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-fixed1
-
-fixed2 = ggplot(c, aes(x=Szn.Min.Avg, y=avgwgt, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("SSC") +
-  xlab ("Min Temp Avg")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-fixed2
-
-fixed3 = ggplot(c, aes(x=Szn.Temp.Avg, y=avgwgt, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("SSC") +
-  xlab ("Temp Avg")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-fixed3
-
-
-
-
-#PCA MGMT traits 
-ggplot(c, aes(x = Herbicides, y = maturity.index)) +
-  geom_point(aes(color = orchard.type)) +
-  geom_smooth(method=glm, se=FALSE)+
-  facet_wrap(~orchard.type)+
-  scale_color_viridis_d()
-
-
-
-
