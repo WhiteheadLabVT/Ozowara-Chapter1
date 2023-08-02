@@ -104,22 +104,49 @@ SeedD <- filter(c, Tissue=="SEED")
 
 #How do management systems interact with broad climatic changes across latitude?-----
 #total phenolics
-tp1 <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=c)
+tp1 <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+               data=c, family=beta_family(link="logit"))
 summary(tp1)
 Anova(tp1)
+#nothing
 
 #total p per tissue type 
-tp.p <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=SkinD)
+tp.p <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+                data=SkinD, family=beta_family(link="logit"))
 summary(tp.p)
 Anova(tp.p)
+#nothing 
 
-tp.sk <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=PulpD)
+tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+                 data=PulpD, family=beta_family(link="logit"))
 summary(tp.sk)
 Anova(tp.sk)
+#orchard.type           4.6558  1    0.03095 * 
+#Latitude               0.5132  1    0.47375   
+#orchard.type:Latitude 10.5057  1    0.00119 **
 
-tp.se <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=SeedD)
+#plotting this 
+ggplot(SkinD, aes(x=Latitude, y=TotalPhen, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#higher total phen in organic at higher latitudes
+
+tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+                 data=SeedD, family=beta_family(link="logit"))
 summary(tp.se)
 Anova(tp.se) 
+#orchard.type          5.2550  1    0.02188 *
+
+#plotting this 
+ggplot(SeedD, aes(x=Latitude, y=TotalPhen, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#phenolics increase as latitude increases
+#conventional has higher phenolics overall 
+
+
+
+
 
 #phenolics richness
 pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude + (1|site.code/orchard.num), data=c)
@@ -448,20 +475,21 @@ results$rotation
 
 
 #Which specific management practices are the most important drivers of fruit chem?----
+
 #Total Phenolics
 #whole fruit 
-mgmt1 <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
-                 data=c)
+mgmt1 <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Acres + (1|site.code), 
+                 data=c, family=beta_family(link="logit"))
 summary(mgmt1)
 Anova(mgmt1)
 #nothing 
 
 #per tissue 
 #Skin 
-mgmt1.sk <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
-                 data=SkinD)
+mgmt1.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Acres + (1|site.code), 
+                    data=SkinD, family=beta_family(link="logit"))
 summary(mgmt1.sk)
 Anova(mgmt1.sk)
 
@@ -606,47 +634,29 @@ summary(pr.pest1.pu)
 Anova(pr.pest1.pu)
 
 #How does fruit quality compare to total phenolics and phenolic richness--------
+#totalphen 
+tp.qual <- glmmTMB(TotalPhen~ SSC+Firmness+avgwgt+maturity.index + (1|site.code)
+                   , data=c)
+summary(tp.qual)
+Anova(tp.qual)
+#Firmness       3.6639  1     0.0556 .
 
-#SSC x Chemsitry 
-ssc.tp <- glmmTMB(TotalPhentrans~ orchard.type*SSC + (1|site.code/orchard.num), data=CCD)
-summary(ssc.tp)
-Anova(ssc.tp)
+#errors 
+tp.firm <- glmmTMB(TotalPhen~ orchard.type*Firmness + 
+                     (1|site.code), data=c)
+summary(tp.firm)
+Anova(tp.firm)
 
-ssc.pr <- glmmTMB(PhenRich~ orchard.type*SSC + (1|site.code/orchard.num), data=CCD)
-summary(ssc.pr)
-Anova(ssc.pr)
-#orchard.type:SSC 3.5753  1    0.05864 .
-
-
-#avgwgt x Chemsitry 
-avg.tp <- glmmTMB(TotalPhentrans~ orchard.type*avgwgt + (1|site.code/orchard.num), data=CCD)
-summary(avg.tp)
-Anova(avg.tp)
-
-avg.pr <- glmmTMB(PhenRich~ orchard.type*avgwgt + (1|site.code/orchard.num), data=CCD)
-summary(avg.pr)
-Anova(avg.pr)
-#avgwgt              5.2503  1    0.02194 *
+ggplot(c, aes(x=Firmness, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 
-#Firmness x Chemsitry 
-frm.tp <- glmmTMB(TotalPhentrans~ orchard.type*Firmness + (1|site.code/orchard.num), data=CCD)
-summary(frm.tp)
-Anova(frm.tp)
-
-frm.pr <- glmmTMB(PhenRich~ orchard.type*Firmness + (1|site.code/orchard.num), data=CCD)
-summary(frm.pr)
-Anova(frm.pr)
-
-#maturity.index x Chemsitry 
-mi.tp <- glmmTMB(TotalPhentrans~ orchard.type*maturity.index + (1|site.code/orchard.num), data=CCD)
-summary(mi.tp)
-Anova(mi.tp)
-
-mi.pr <- glmmTMB(PhenRich~ orchard.type*maturity.index + (1|site.code/orchard.num), data=CCD)
-summary(mi.pr)
-Anova(mi.pr)
-
+#PhenRich 
+pr.qual <- glmmTMB(PhenRich~ SSC+Firmness+avgwgt+maturity.index + (1|site.code)
+                   ,data=c)
+summary(pr.qual)
+Anova(pr.qual)
 
 #Figures------------------------------------------------------------------------ 
 
@@ -699,143 +709,3 @@ se.p1 <- ggplot(d.se, aes(x=orchard.type, y=TotalPhentrans, color=orchard.type))
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
   scale_x_discrete(labels=c("Conventional", "Organic"))
 se.p1
-
-
-
-multiplot(se.p1,sk.p1, pu.p1)
-
-#Which compounds distinguish fruits raised in their respective management systems?
-
-
-
-
-
-#How do management systems interact with broad climatic changes across latitude?
-
-#phen rich 
-ggplot(CCD, aes(x=Latitude, y=PhenRich, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-ggplot(CCD, aes(x=elevation, y=PhenRich, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-
-ggplot(CCD, aes(x=Longitude, y=PhenRich, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-ggplot(CCD, aes(x=Prox.Water, y=PhenRich, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#total phenolics 
-ggplot(CCD, aes(x=Latitude, y=TotalPhentrans, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("Total Phenolics") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-ggplot(CCD, aes(x=elevation, y=TotalPhentrans, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-ggplot(CCD, aes(x=Longitude, y=TotalPhentrans, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-ggplot(CCD, aes(x=Prox.Water, y=TotalPhentrans, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-
-ggplot(pc_clim, aes(x=PC2, y=TotalPhentrans, color=orchard.type)) +
-  theme_classic() +
-  geom_point() +
-  ylab ("PhenRich") +
-  xlab ("Elevation (m)")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-
-#Multiple plot function----------------------------------------------------------------------------------------------
-#
-# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
-# - cols:   Number of columns in layout
-# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
-#
-# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
-# then plot 1 will go in the upper left, 2 will go in the upper right, and
-# 3 will go all the way across the bottom.
-#
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-  
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-  
-  numPlots = length(plots)
-  
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-  
-  if (numPlots==1) {
-    print(plots[[1]])
-    
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-      
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
-
-
-
-
-
