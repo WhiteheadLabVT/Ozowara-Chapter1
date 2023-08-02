@@ -16,47 +16,25 @@ library(Hmisc)#correlation matrix calculation
 library(corrplot)#plotting correlation matrix 
 library(car)
 
-######Data Organization and Restructuring###--------------------------------------------
+#Data Organization and Restructuring--------------------------------------------
+#Fruit level data 
+d <- read_csv("Fruit Level Data.csv")
 
-
-#Fruit Level Total Chemistry Data--------------------------------------------------------------
-#This data set is going to be used to answer one portion of Q1. This data set, 
-#contains the data for each known compound as well as the mgmt system, and site
-#code
-
-d <- read_csv("chem_all_dat.csv")
-View(d)
 d <- d %>%
   mutate(TotalPhen=rowSums(across(8:29)),
          PhenRich=rowSums(across(8:29)!=0))
 
 d <- d %>% 
-  mutate_at(c("Orchard.num", "orchard.type", "site.code", "Tree", "SampleID"), as.factor)
+  mutate_at(c("orchard.num", "orchard.type", "site.code", "Tree", "SampleID"), as.factor)
 View(d)
-
-
-#logit transformation worked the best so were going to use that 
-d <- d %>%
-  mutate(TotalPhentrans= log10(d$TotalPhen))
-d$TotalPhentrans[d$TotalPhentrans==-Inf] <- NA
-na.omit(d$TotalPhentrans)
-
-
-shapiro.test(d$TotalPhentrans)
-#W = 0.86448, p-value < 2.2e-16
-hist(d$TotalPhen)
-hist(d$TotalPhentrans)
-#not good but looks better so we'll mess around with this 
-View(d)
-
 
 #separate by tissue type 
 d.sk <- filter(d, Tissue=="SKIN")
-d.sk <- dplyr::select(d.sk, -(6+which(colSums(d.sk[7:32], na.rm=TRUE) %in% 0)))
+d.sk <- dplyr::select(d.sk, -(6+which(colSums(d.sk[7:31], na.rm=TRUE) %in% 0)))
 d.pu <- filter(d, Tissue=="PULP")
-d.pu <- dplyr::select(d.pu, -(6+which(colSums(d.pu[7:32], na.rm=TRUE) %in% 0)))
+d.pu <- dplyr::select(d.pu, -(6+which(colSums(d.pu[7:31], na.rm=TRUE) %in% 0)))
 d.se <- filter(d, Tissue=="SEED")
-d.se <- dplyr::select(d.se, -(6+which(colSums(d.se[7:32], na.rm=TRUE) %in% 0)))
+d.se <- dplyr::select(d.se, -(6+which(colSums(d.se[7:31], na.rm=TRUE) %in% 0)))
 
 #Assign row names
 d <- as.data.frame(d)
@@ -73,37 +51,27 @@ d.expl <- d[,1:6]
 d.comp.sk <- d.sk[,8:29]
 d.expl.sk <- d.sk[,1:6]
 #pulp
-d.comp.pu <- d.pu[,8:29]
+d.comp.pu <- d.pu[,8:28]
 d.expl.pu <- d.pu[,1:6]
 #Seed
 d.comp.se <- d.se[,8:29]
 d.expl.se <- d.se[,1:6]
 
-#Orchard & Tree Level Data----------------------------------------
-#These data sets will be condensed to the orchard level (24 observations)
-#We're going to create four different data sets to analyze parts of the fruit: 
-#Whole Fruit, Skin, Seed, and Pulp
-
-###Orchard and Tree level data will be the same for all###
+#Condensing to orchard level data 
 Orchard <- read_csv("Orchard Level Data.csv")
-
-#convert columns into charcaters into numeric data  
-
-Orchard$Com_Mul <- Orchard$Com_Mul %>% as.factor() %>% as.numeric()
-Orchard$Cultivation <- Orchard$Cultivation %>% as.factor() %>% as.numeric()
-Orchard$Herbicides <- Orchard$Herbicides %>% as.factor() %>% as.numeric()
-Orchard$Fire_Mgmt <- Orchard$Fire_Mgmt %>% as.factor() %>% as.numeric()
-Orchard$Weed_Mats <- Orchard$Weed_Mats %>% as.factor() %>% as.numeric()
-Orchard$Cover_Crops <- Orchard$Cover_Crops %>% as.factor() %>% as.numeric()
-Orchard$Mowing <- Orchard$Mowing %>% as.factor() %>% as.numeric()
-view(Orchard)
-
-
-View(Orchard)
+Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
+applemaggots= c$`Apple Maggots`
+codmoth = c$`Codling Moth`
+powmil= c$`Powdery mildew`
+bitterrot= c$`Bitter Rot`
+applescab=c$`Apple scab`
+rootrot= c$`Root Rot`
+fireblight= c$`Fire Blight`
 
 #convert weights based on averages and bag weights
 Tree <- read_csv("Tree Level Data.csv")
-View(Tree)
+Tree$orchard.num <- as.factor(as.character(Tree$orchard.num))
+
 Tree<- Tree %>%
   mutate(avgwgt=(apple.wgt.3-bag.weight)/3)%>%
 dplyr::select(-c(3:4))
@@ -114,176 +82,68 @@ Tree <- Tree %>%
                , mean, na.rm = TRUE)
 View(Tree)
 
-#Whole Fruit--------------------------------------------------------------------
-Fruit0 <- read_csv("Fruit Level Data.csv")
-Fruit0 <- Fruit0 %>%
-  mutate(TotalPhen=rowSums(across(8:29)),
-         PhenRich=rowSums(across(8:29)!=0))
+#whole fruit 
+Fruit <- d 
+Fruit$orchard.num <- as.factor(as.character(Fruit$orchard.num))
 
-Fruit0 <- Fruit0 %>%
-  mutate(TotalPhentrans= log10(Fruit0$TotalPhen))
-Fruit0$TotalPhentrans[Fruit0$TotalPhentrans==-Inf] <- NA
-na.omit(Fruit0$TotalPhentrans)
-view(Fruit0$TotalPhentrans)
-
-Fruit0 <- Fruit0 %>%
-  group_by(orchard.num) %>%
-  summarise_at(c("TotalPhen", "PhenRich","TotalPhentrans")
+Fruit <- Fruit %>%
+  group_by(orchard.num, Tissue) %>%
+  summarise_at(c("TotalPhen", "PhenRich")
                , mean, na.rm = TRUE)
 
-CCD <- left_join(Tree, Orchard, by="orchard.num")
-CCD <- left_join(CCD, Fruit0, by="orchard.num")
-View(CCD)
+#Join all data 
+c <- left_join(Tree, Orchard, by="orchard.num")
+c <- left_join(c, Fruit, by="orchard.num")
+View(c)
 
-#Skin---------------------------------------------------------------------------
-#condense chem data by tissue and orchard 
-Fruit1 <- read_csv("Fruit Level Data.csv")
-Fruit1 <- Fruit1 %>%
-  mutate(TotalPhen=rowSums(across(8:29)),
-         PhenRich=rowSums(across(8:29)!=0))
-
-Fruit1 <- Fruit1 %>%
-  mutate(TotalPhentrans= log10(Fruit1$TotalPhen))
-Fruit1$TotalPhentrans[Fruit1$TotalPhentrans==-Inf] <- NA
-na.omit(Fruit1$TotalPhentrans)
+#Split by tissue 
+SkinD <- filter(c, Tissue=="SKIN")
+PulpD <- filter(c, Tissue=="PULP")
+SeedD <- filter(c, Tissue=="SEED")
 
 
-
-Fruit1 <- Fruit1 %>%
-dplyr::filter(Tissue != "PULP") %>%
-dplyr::filter(Tissue != "SEED") 
-
-
-Fruit1 <- Fruit1 %>%
-group_by(orchard.num) %>%
-summarise_at(c("TotalPhen", "PhenRich", "TotalPhentrans")
-               , mean, na.rm = TRUE)
-
-View(Fruit1)
-
-#combine all data sets to 120 values 
-SkinD <- left_join(Tree, Orchard, by="orchard.num")
-SkinD <- left_join(SkinD, Fruit1, by="orchard.num")
-View(SkinD)
-
-#Pulp---------------------------------------------------------------------------
-Fruit2 <- read_csv("Fruit Level Data.csv")
-Fruit2 <- Fruit2 %>%
-  mutate(TotalPhen=rowSums(across(8:29)),
-         PhenRich=rowSums(across(8:29)!=0))
-
-Fruit2 <- Fruit2 %>%
-  mutate(TotalPhentrans= log10(Fruit2$TotalPhen))
-Fruit2$TotalPhentrans[Fruit2$TotalPhentrans==-Inf] <- NA
-na.omit(Fruit2$TotalPhentrans)
-
-
-Fruit2 <- Fruit2 %>%
-  dplyr::filter(Tissue != "SKIN") %>%
-  dplyr::filter(Tissue != "SEED") 
-
-
-Fruit2 <- Fruit2 %>%
-  group_by(orchard.num) %>%
-  summarise_at(c("TotalPhen", "PhenRich", "TotalPhentrans")
-               , mean, na.rm = TRUE)
-
-View(Fruit2)
-
-PulpD <- left_join(Tree, Orchard, by="orchard.num")
-PulpD <- left_join(PulpD, Fruit2, by="orchard.num")
-View(PulpD)
-#Seed#--------------------------------------------------------------------------
-Fruit3 <- read_csv("Fruit Level Data.csv")
-Fruit3 <- Fruit3 %>%
-  mutate(TotalPhen=rowSums(across(8:29)),
-         PhenRich=rowSums(across(8:29)!=0))
-
-Fruit3 <- Fruit3 %>%
-  mutate(TotalPhentrans= log10(Fruit3$TotalPhen))
-Fruit3$TotalPhentrans[Fruit3$TotalPhentrans==-Inf] <- NA
-na.omit(Fruit3$TotalPhentrans)
-
-
-Fruit3 <- Fruit3 %>%
-  dplyr::filter(Tissue != "SKIN") %>%
-  dplyr::filter(Tissue != "PULP") 
-
-Fruit3 <- Fruit3 %>%
-  group_by(orchard.num) %>%
-  summarise_at(c("TotalPhen", "PhenRich", "TotalPhentrans")
-               , mean, na.rm = TRUE)
-
-View(Fruit3)
-
-#combine all data sets to 120 values 
-SeedD <- left_join(Tree, Orchard, by="orchard.num")
-SeedD <- left_join(SeedD, Fruit3, by="orchard.num")
-View(SeedD)
-
-
-
-#####Data Analysis-------------------------------------------------------------------
-
-
-
-#How do management systems (organic vs conventional) shape chemical comp and richness?-------
-#Analyses: one linear mixed models for total phenolics and phenolic richness for the 
-#whole fruit and for each tissue type 
-
-###total phenolics###
-tp1 <- glmmTMB(TotalPhentrans~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d)
+#How do management systems interact with broad climatic changes across latitude?-----
+#total phenolics
+tp1 <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=c)
 summary(tp1)
 Anova(tp1)
-#orchard.type          1.6935  1    0.19314    
-#Tissue              321.4999  2    < 2e-16 ***
-#orchard.type:Tissue   5.1914  2    0.07459 . 
 
 #total p per tissue type 
-tp.p <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.pu)
+tp.p <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=SkinD)
 summary(tp.p)
 Anova(tp.p)
 
-tp.sk <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.sk)
+tp.sk <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=PulpD)
 summary(tp.sk)
 Anova(tp.sk)
 
-tp.se <- glmmTMB(TotalPhentrans ~ orchard.type + (1|site.code/Orchard.num/Tree), data=d.se)
+tp.se <- glmmTMB(TotalPhen ~ orchard.type*Latitude + (1|site.code/orchard.num), data=SeedD)
 summary(tp.se)
 Anova(tp.se) 
-#orchard.typeOrganic p=0.006587 **
 
-
-###Q1B:phenolics richness###
-pr1 <- glmmTMB(PhenRich~ orchard.type*Tissue + (1|site.code/Orchard.num/Tree), data=d, family= poisson)
+#phenolics richness
+pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude + (1|site.code/orchard.num), data=c)
 summary(pr1)
 Anova(pr1)
 
-#orchard.type           2.2590  1    0.16471    
-#Tissue              1279.1586  2    < 2e-16 ***
-#orchard.type:Tissue    6.4470  2    0.03982 *  
-
-diagnose(pr1)
-shapiro.test(resid(pr1))
-hist(resid(pr1))
-#= 0.98958, p-value = 0.01156
-
-
 #phen rich per tissue type 
-pr.p <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.pu, family= poisson)
+pr.p <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=SkinD)
 summary(pr.p)
 Anova(pr.p)
-#not sig 
+#orchard.type:Latitude 3.6179  1    0.05716 .
 
-pr.sk <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.sk, family= poisson)
+
+pr.sk <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=PulpD)
 summary(pr.sk)
 Anova(pr.sk)
 #not sig 
 
-pr.se <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/Orchard.num/Tree), data=d.se, family= poisson)
+pr.se <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=SeedD)
 summary(pr.se)
 Anova(pr.se)
-#orchard.type  0.01726 *
+#orchard.type          6.1841  1    0.01289 *
+#Latitude              4.1285  1    0.04217 *
+
 #Which compounds distinguish fruits raised in their respective management systems?----------
 #Analysis: NMDS and random forest
 ###NMDS###
@@ -420,49 +280,6 @@ for (i in 1:length(colnames(d.comp.se.sel))){
 }
 dev.off()
 #values higher in conventional orchards 
-
-#How do management systems interact with broad climatic changes across latitude?-----
-
-###whole fruit###
-#Phen Rich 
-pr.la <- glmmTMB(PhenRich~ orchard.type*Latitude + (1|site.code), data=CCD)
-summary(pr.la)
-Anova(pr.la)
-#orchard.type:Latitude 3.8925  1     0.0485 *
-
-pr.lo <- glmmTMB(PhenRich~ orchard.type*Longitude + (1|site.code), data=CCD)
-summary(pr.lo)
-Anova(pr.lo)
-#orchard.type           3.2739  1    0.07039 .
-#Longitude              4.4290  1    0.03533 *
-
-pr.el <- glmmTMB(PhenRich~ orchard.type*elevation + (1|site.code), data=CCD)
-summary(pr.el)
-Anova(pr.el)
-#elevation              10.4298  1    0.00124 **
-
-pr.pw <- glmmTMB(PhenRich~ orchard.type*Prox.Water + (1|site.code), data=CCD)
-summary(pr.pw)
-Anova(pr.pw)
-
-#Total Phen 
-tp.la <- glmmTMB(TotalPhentrans~ orchard.type*Latitude + (1|site.code), data=CCD)
-summary(tp.la)
-Anova(tp.la)
-
-tp.lo <- glmmTMB(TotalPhentrans~ orchard.type*Longitude, data=CCD)
-summary(tp.lo)
-Anova(tp.lo)
-#Longitude              11.3098  1   0.000771 ***
-
-tp.el <- glmmTMB(TotalPhentrans~ orchard.type*elevation, data=CCD)
-summary(tp.el)
-Anova(tp.el)
-#elevation              6.9692  1   0.008293 **
-
-tp.pw <- glmmTMB(TotalPhentrans~ orchard.type*Prox.Water + (1|site.code), data=CCD)
-summary(tp.pw)
-Anova(tp.pw)
 
 #Which abiotic factors are the most important drivers of fruit chem?------------
 
@@ -631,457 +448,162 @@ results$rotation
 
 
 #Which specific management practices are the most important drivers of fruit chem?----
-
-#Analysis: principle components analysis followed by PC regression with each variable
-#followed by a correlation matrix for visual interpretation 
-#1 for whole fruit, skin, pulp, seed
-
-###Principle Compnents Analysis###
-p_mgmt <- dplyr::select(CCD,c("Cultivation","Herbicides","Com_Mul", "Mowing",
-                            "Weed_Mats", "Cover_Crops","Fire_Mgmt","Acres"))
-
-#calculate principal components
-results1 <- prcomp(p_mgmt, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results1)  
-
-#display principal components
-results1$x
-
-results1$rotation
-#display the first six scores
-head(results1$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results1,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results1)$importance
-summary(results1)$importance[2,]
-
-var_explained1 = results1$sdev^2 / sum(results1$sdev^2)
-
-df1 <- data.frame(PC=1:8, var_explained1=var_explained1)
-
-#create scree plot
-ggplot(df1, aes(x=PC, y=var_explained1)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-#let's look at them all
-
-###Principle Components Regression###
-
-#Whole Fruit#
-pc_mgmt <- as.data.frame(results1$x)
-pc_mgmt <- cbind(pc_mgmt, CCD)
-
-#TotalPhen
-w1 <- glmmTMB(TotalPhen ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-+ PC8 +(1|site.code), data=pc_mgmt)
-summary(w1)
-#PC1                  -8693.5     2698.2  -3.222  0.00127 **
-#PC6                 -20437.0     2704.7  -7.556 4.15e-14 ***
-
-plot(TotalPhen ~ PC1, data=pc_mgmt)
-plot(TotalPhen ~ PC6, data=pc_mgmt)
-
-#PhenRich
-w2 <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=pc_mgmt)
-summary(w2)
-#PC1                 -0.34937    0.14959  -2.335 0.019518 *  
-#PC5                 -0.87040    0.36264  -2.400 0.016388 *  
-#PC6                 -0.38873    0.15781  -2.463 0.013764 *  
-#PC8                 -1.02755    0.26770  -3.838 0.000124 ***
-
-plot(PhenRich ~ PC1, data=pc_mgmt)
-plot(PhenRich ~ PC5, data=pc_mgmt)
-plot(PhenRich ~ PC6, data=pc_mgmt)
-plot(PhenRich ~ PC8, data=pc_mgmt)
-
-#correlation matrix 
-p_phenmgmt <- dplyr::select(CCD,c("Cultivation","Herbicides","Com_Mul", "Mowing",
-"Weed_Mats", "Cover_Crops","Fire_Mgmt","Acres", "TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(p_phenmgmt))
-corrplot(cor(p_phenmgmt))
-
-#SKIN#
-pc.sk_mgmt <- as.data.frame(results1$x)
-pc.sk_mgmt <- cbind(pc.sk_mgmt, SkinD)
-
-
-#TotalPhen
-sk.p3 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +(1|site.code), data=pc.sk_mgmt)
-summary(sk.p3)#nothing 
-    
-#PhenRich
-sk.p4 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +(1|site.code), data=pc.sk_mgmt)
-summary(sk.p4)
-#PC7                 -1.06869    0.43126  -2.478  0.01321 *  
-#PC4                 -0.57329    0.24650  -2.326  0.02003 *  
-#PC2                  0.78977    0.26295   3.003  0.00267 ** 
-
-plot(PhenRich ~ PC2, data=pc.sk_mgmt)
-plot(PhenRich ~ PC4, data=pc.sk_mgmt)
-plot(PhenRich ~ PC7, data=pc.sk_mgmt)
-
-
-
-#correlation matrix 
-pc.sk_phenclim <- dplyr::select(SkinD,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-                                        "TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(pc.sk_phenclim))
-corrplot(cor(pc.sk_phenclim))
-
-###PULP###
-
-pc.pu_clim <- as.data.frame(results1$x)
-pc.pu_clim <- cbind(pc.pu_clim, PulpD)
-
-#TotalPhen
-pu.p3 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 +PC6 + PC7 
-                + PC8 + (1|site.code), data=pc.pu_clim)
-summary(pu.p3)
-#PC1                  -1238.2      622.5  -1.989  0.04669 *  
-#PC2                  -4267.0     1082.2  -3.943 8.05e-05 ***
-#PC3                  -4064.2     1410.4  -2.882  0.00396 **
-
-plot(TotalPhen ~ PC1, data=pc.pu_clim)
-plot(TotalPhen ~ PC2, data=pc.pu_clim)
-plot(TotalPhen ~ PC3, data=pc.pu_clim)
-
-results.pu$rotation
-
-pu.p4 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +  (1|site.code), data=pc.pu_clim)
-summary(pu.p4)
-#PC1                  -0.7012     0.2291  -3.061 0.002206 ** 
-#PC3                   0.4068     0.1369   2.971 0.002970 ** 
-#PC5                  -1.1738     0.5236  -2.242 0.024976 *  
-#PC8                  -1.4684     0.4240  -3.463 0.000533 ***    
-
-plot(PhenRich ~ PC1, data=pc.pu_clim)
-plot(PhenRich ~ PC3, data=pc.pu_clim)
-plot(PhenRich ~ PC5, data=pc.pu_clim)
-plot(PhenRich ~ PC8, data=pc.pu_clim)
-
-results1$rotation
-
-###correlation matrix 
-p.pu_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
-  "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
-                                       "TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(p.pu_phenclim))
-
-corrplot(cor(p.pu_phenclim))
-
-
-
-###SEED###
-pc.se_clim <- as.data.frame(results1$x)
-pc.se_clim <- cbind(pc.se_clim, SeedD)
-
-
-#TotalPhen
-p.se1 <- glmmTMB(TotalPhen ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 + (1|site.code) , data=pc.se_clim)
-summary(p.se1)
-#PC3                    14993       2802   5.350 8.79e-08 ***
-#PC4                    26863       5926   4.533 5.81e-06 ***
-#PC6                   -26165       5357  -4.884 1.04e-06 ***
-#PC7                   -45839      11511  -3.982 6.83e-05 ***
-
-
-plot(TotalPhen ~ PC3, data=pc.se_clim)
-plot(TotalPhen ~ PC4, data=pc.se_clim)
-plot(TotalPhen ~ PC6, data=pc.se_clim)
-plot(TotalPhen ~ PC7, data=pc.se_clim)
-
-results1$rotation
-
-p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 + (1|site.code) , data=pc.se_clim)
-summary(p.se2)
-#PC4                  0.49130    0.24087   2.040  0.04139 *  
-#PC5                 -1.15560    0.44655  -2.588  0.00966 ** 
-#PC6                 -1.15902    0.26672  -4.345 1.39e-05 ***    
-#PC8                 -1.71758    0.40558  -4.235 2.29e-05 ***
-  
-plot(PhenRich ~ PC4, data=pc.se_clim)
-plot(PhenRich ~ PC5, data=pc.se_clim)
-plot(PhenRich ~ PC6, data=pc.se_clim)
-plot(PhenRich ~ PC8, data=pc.se_clim)
-
-
-results1$rotation
-
-###correlation matrix 
-p.se_phenclim <- dplyr::select(PulpD,c("Prox.Water", "Longitude","Latitude","elevation", 
- "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI", 
- "TotalPhen", "PhenRich"))
-
-rcorr(as.matrix(p.se_phenclim))
-corrplot(cor(p.se_phenclim))
-
-
-#Which pest or diseases presence has the most significant affect on fruit quality-----
-
-p_pest <- dplyr::select(CCD,c("Anthracnose","European Canker","Bullseye Rot", "Powdery mildew",     
-                            "Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Tree Borer",
-                            "Cedar Apple Rust","Bitter Rot","Leaf Roller","Trhips",
-                            "Scale"))
-
-#removed horned caterpillar and stemble
-
-p_pest[is.na(p_pest)] <- 1
-view(p_pest)
-
-#calculate principal components
-results2 <- prcomp(p_pest, scale = TRUE)
-
-#this gives you the % variance explained
-summary(results2)  
-
-#display principal components
-results2$x
-
-results2$rotation
-#display the first six scores
-head(results2$x)
-
-#this plots the results of the PCAs into a two dimensional representation 
-biplot(results2,
-       col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
-
-#calculate total variance explained by each principal component
-summary(results2)$importance
-summary(results2)$importance[2,]
-
-var_explained2 = results2$sdev^2 / sum(results2$sdev^2)
-
-df2 <- data.frame(PC=1:16, var_explained2=var_explained2)
-
-#create scree plot
-ggplot(df2, aes(x=PC, y=var_explained2)) + 
-  geom_line() + 
-  geom_point()+
-  xlab("Principal Component") + 
-  ylab("Variance Explained") +
-  ggtitle("Scree Plot") +
-  ylim(0, 1)
-
-#we'll use 1 through 8 
-
-##Linear models
-#Whole Fruit#
-p_pest <- as.data.frame(results2$x)
-p_pest <- cbind(p_pest, CCD)
-
-#TotalPhen
-p.w1 <- glmmTMB(TotalPhentrans ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=p_pest)
-summary(p.w1)
-#orchard.typeOrganic -0.17295    0.05330   -3.24  0.00117 ** 
-#PC3                  0.07161    0.02988    2.40  0.01652 *  
-#PC4                  0.03504    0.02121    1.65  0.09864 .  
-#PC6                  0.15399    0.03004    5.13 2.97e-07 ***
-  
-plot(TotalPhen ~ PC3, data=p_pest)
-plot(TotalPhen ~ PC4, data=p_pest)
-plot(TotalPhen ~ PC6, data=p_pest)
-
-results2$rotation
-
-
-pi.w1 <- glmmTMB(TotalPhentrans ~ orchard.type*Pest_Index +(1|site.code), data=CCD)
-summary(pi.w1)
-Anova(pi.w1)
-#nothing
-
-
-#PhenRich
-p.w2 <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=p_pest)
-summary(p.w2)
-#orchard.typeOrganic  -0.7878     0.3400  -2.317   0.0205 *  
-#PC3                   0.3802     0.1735   2.192   0.0284 *  
-#PC6                   0.5561     0.2488   2.235   0.0254 *  
-#PC8                  -0.5911     0.2501  -2.363   0.0181 *  
-  
-
-plot(PhenRich ~ PC3, data=p_pest)
-plot(PhenRich ~ PC6, data=p_pest)
-plot(PhenRich ~ PC8, data=p_pest)
-
-results2$rotation
-
-
-pi.w2 <- glmmTMB(PhenRich ~ orchard.type*Pest_Index +(1|site.code), data=CCD)
-summary(pi.w2)
-Anova(pi.w2)
-#orchard.type:Pest_Index 5.4441  1    0.01963 *
-#orchard.type            4.4245  1    0.03543 *
-  
-
-#SKIN#
-pc.sk_pest <- as.data.frame(results2$x)
-pc.sk_pest <- cbind(pc.sk_pest, SkinD)
-
-
-#TotalPhen
-sk.pest1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +(1|site.code), data=pc.sk_pest)
-summary(sk.pest1) 
-#PC6                  0.098205   0.033415    2.94  0.00329 ** 
-
-plot(TotalPhentrans ~ PC6, data=pc.sk_pest)
-
-results2$rotation
-
-#pest index 
-pi.sk1 <- glmmTMB(TotalPhentrans ~ orchard.type*Pest_Index +(1|site.code), data=SkinD)
-summary(pi.sk1)
-Anova(pi.sk1)
-
-#PhenRich
-sk.pest2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +(1|site.code), data=pc.sk_pest)
-summary(sk.pest2)
-#PC3                  0.36243    0.15181    2.39  0.01696 *  
-#PC6                  0.76390    0.20801    3.67  0.00024 ***
-#PC7                 -0.34849    0.20837   -1.67  0.09443 .  
-
-plot(PhenRich ~ PC3, data=pc.sk_pest)
-plot(PhenRich ~ PC6, data=pc.sk_pest)
-plot(PhenRich ~ PC7, data=pc.sk_pest)
-
-results2$rotation
-
-#pest index 
-pi.sk2 <- glmmTMB(PhenRich ~ orchard.type*Pest_Index +(1|site.code), data=SkinD)
-summary(pi.sk2)
-Anova(pi.sk2)
-#nothing
-
-
-###PULP###
-pc.pu_pest <- as.data.frame(results2$x)
-pc.pu_pest <- cbind(pc.pu_pest, PulpD)
-
-#TotalPhen
-pu.pest1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 +PC6 + PC7 
-                 + PC8 + (1|site.code), data=pc.pu_pest)
-summary(pu.pest1)
-#orchard.typeOrganic -0.454784   0.139223  -3.267 0.001089 ** 
-#PC4                  0.127475   0.054475   2.340 0.019281 *  
-#PC6                  0.272872   0.076607   3.562 0.000368 ***
-#PC7                 -0.195692   0.080475  -2.432 0.015027 *  
-
-plot(TotalPhentrans ~ PC4, data=pc.pu_pest)
-plot(TotalPhentrans ~ PC6, data=pc.pu_pest)
-plot(TotalPhentrans ~ PC7, data=pc.pu_pest)
-
-results2$rotation
-
-#pest index 
-pi.pu1 <- glmmTMB(TotalPhentrans ~ orchard.type*Pest_Index +(1|site.code), data=PulpD)
-summary(pi.pu1)
-Anova(pi.pu1)
+#Total Phenolics
+#whole fruit 
+mgmt1 <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=c)
+summary(mgmt1)
+Anova(mgmt1)
+#nothing 
+
+#per tissue 
+#Skin 
+mgmt1.sk <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=SkinD)
+summary(mgmt1.sk)
+Anova(mgmt1.sk)
+
+#pulp 
+mgmt1.pu <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                    data=PulpD)
+summary(mgmt1.pu)
+Anova(mgmt1.pu)
+
+#seed
+mgmt1.se <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                    data=SeedD)
+summary(mgmt1.se)
+Anova(mgmt1.se)
+
+
+
+#Phenolics Richness 
+#whole fruit 
+mgmt2 <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                 data=c)
+summary(mgmt2)
+Anova(mgmt2)
+#nothing 
+
+#per tissue 
+#Skin 
+mgmt2.sk <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                    data=SkinD)
+summary(mgmt2.sk)
+Anova(mgmt2.sk)
+#Herbicides  5.7083  1    0.01688 *
+
+sk.herb <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+                    data=SkinD)
+summary(sk.herb)
+Anova(sk.herb)
 #nothing 
 
 
-pu.pest2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 +  (1|site.code), data=pc.pu_pest)
-summary(pu.pest2)
-#PC4                  0.49373    0.23164   2.131   0.0330 *  
-#PC6                  0.80884    0.35037   2.309   0.0210 *  
-#PC7                 -0.63872    0.30979  -2.062   0.0392 * 
+#pulp 
+mgmt2.pu <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                    data=PulpD)
+summary(mgmt2.pu)
+Anova(mgmt2.pu)
+#Cultivation 10.2296  1   0.001382 **
+#Mowing       3.0575  1   0.080363 . 
 
-plot(PhenRich ~ PC4, data=pc.pu_pest)
-plot(PhenRich ~ PC6, data=pc.pu_pest)
-plot(PhenRich ~ PC7, data=pc.pu_pest)
+pu.cult <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
+                   data=PulpD)
+summary(pu.cult)
+Anova(pu.cult)
+#Cultivation              7.7980  1    0.00523 **
 
-results1$rotation
+ggplot(PulpD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
+#lower richness when cultivation used
+#need to explore further 
 
-#pest index 
-pi.pu2 <- glmmTMB(PhenRich ~ orchard.type*Pest_Index +(1|site.code), data=PulpD)
-summary(pi.pu2)
-Anova(pi.pu2)
-#Pest_Index              2.9093  1    0.08807 .
-#orchard.type:Pest_Index 4.2968  1    0.03818 *
-
-
-###SEED###
-pc.se_pest <- as.data.frame(results2$x)
-pc.se_pest <- cbind(pc.se_pest, SeedD)
+#NANS 
+pu.mow <- glmmTMB(PhenRich ~ orchard.type*Mowing+ (1|site.code), 
+                   data=PulpD)
+summary(pu.mow)
+Anova(pu.mow)
 
 
-#TotalPhen
-sd.pest1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 + (1|site.code) , data=pc.se_pest)
-summary(sd.pest1)
-#orchard.typeOrganic -0.35129    0.06800   -5.17 2.39e-07 ***
-#PC1                  0.09721    0.01783    5.45 5.00e-08 ***
-#PC2                 -0.08857    0.01875   -4.72 2.32e-06 ***
-#PC3                  0.10722    0.02061    5.20 1.97e-07 ***
-#PC6                  0.15505    0.02824    5.49 4.02e-08 ***
+#seed
+mgmt2.se <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                    data=SeedD)
+summary(mgmt2.se)
+Anova(mgmt2.se)
+#Cultivation 7.8545  1   0.005069 **
+#Herbicides  8.0635  1   0.004517 **
+#Weed_Mats   9.4595  1   0.002101 **
+#Fire_Mgmt   6.7139  1   0.009567 **
 
-plot(TotalPhentrans ~ PC1, data=pc.se_pest)
-plot(TotalPhentrans ~ PC2, data=pc.se_pest)
-plot(TotalPhentrans ~ PC3, data=pc.se_pest)
-plot(TotalPhentrans ~ PC6, data=pc.se_pest)
+se.cult <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
+                   data=SeedD)
+summary(se.cult)
+Anova(se.cult)
+#orchard.type             5.7312  1    0.01667 *
+#Cultivation              2.8729  1    0.09008 .
 
-results2$rotation
 
-#pest index 
-pi.sd1 <- glmmTMB(TotalPhentrans ~ orchard.type*Pest_Index +(1|site.code), data=SeedD)
-summary(pi.sd1)
-Anova(pi.sd1)
-#orchard.type            12.8551  1  0.0003366 ***
-#Pest_Index               3.7786  1  0.0519124 . 
+se.herb <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+                   data=SeedD)
+summary(se.herb)
+Anova(se.herb)
+#orchard.type            6.2786  1    0.01222 *
 
-#PhenRich 
-sd.pest2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-                 + PC8 + (1|site.code) , data=pc.se_pest)
-summary(sd.pest2)
-#orchard.typeOrganic -1.0893253  0.2612337  -4.170 3.05e-05 ***
-#PC1                  0.4077752  0.1486502   2.743 0.006085 ** 
-#PC2                 -0.5374836  0.1691185  -3.178 0.001482 ** 
-#PC3                  0.4424294  0.2429720   1.821 0.068621 . 
-#PC5                  0.4605470  0.2039925   2.258 0.023966 *  
-#PC8                 -0.9818876  0.2756774  -3.562 0.000368 ***
-  
-  
-plot(PhenRich ~ PC1, data=pc.se_pest)
-plot(PhenRich ~ PC2, data=pc.se_pest)
-plot(PhenRich ~ PC3, data=pc.se_pest)
-plot(PhenRich ~ PC5, data=pc.se_pest)
-plot(PhenRich ~ PC8, data=pc.se_pest)
+#NANS 
+se.weedm <- glmmTMB(PhenRich ~ orchard.type*Weed_Mats+ (1|site.code), 
+                   data=SeedD)
+summary(se.weedm)
+Anova(se.weedm)
 
-results2$rotation
 
-#Pest Index
-pi.sd2 <- glmmTMB(PhenRich ~ orchard.type*Pest_Index +(1|site.code), data=SeedD)
-summary(pi.sd2)
-Anova(pi.sd2)
-#orchard.type            12.3219  1  0.0004477 ***
-#Pest_Index              13.2017  1  0.0002797 ***
+ggplot(SeedD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
+#lower richness when cultivation used 
+
+ggplot(SeedD, aes(x=Herbicides, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
+#weird
+
+#Which pest or diseases presence has the most significant affect on fruit chem?-----
+#first part explained in the PhysicalxClimate Code
+
+#GLMMs models
+
+#Whole Fruit 
+pr.pest1 <- glmmTMB(PhenRich ~ Aphids+applemaggots+codmoth+
+powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                    data=c)
+summary(pr.pest1)
+Anova(pr.pest1)
+#nothing 
+
+#per tissue 
+#skin 
+pr.pest1.sk <- glmmTMB(PhenRich ~ Aphids+applemaggots+codmoth+
+                      powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                    data=SkinD)
+summary(pr.pest1.sk)
+Anova(pr.pest1.sk)
+
+
+#pulp
+pr.pest1.pu <- glmmTMB(PhenRich ~ Aphids+applemaggots+codmoth+
+                         powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+                       data=PulpD)
+summary(pr.pest1.pu)
+Anova(pr.pest1.pu)
 
 #How does fruit quality compare to total phenolics and phenolic richness--------
 

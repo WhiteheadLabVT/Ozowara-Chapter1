@@ -388,13 +388,26 @@ summary(mat_herb)
 Anova(mat_herb)
 #orchard.type:Herbicides  6.6521  1   0.009904 ** 
 #organic orchards that used herbicides had higher maturity values 
+
+
+mat_herb <- glmmTMB(maturity.index ~  orchard.type*Acres+ (1|site.code), data=c)
+summary(mat_herb)
+Anova(mat_herb)
+#Acres              5.5277  1    0.01872 *
+
+
+
+
+
+
+
 ggplot(c, aes(x=Herbicides, y=maturity.index))+
   geom_smooth(method = "lm") +
   geom_boxplot()
 
-ggplot(c, aes(x=Herbicides, y=maturity.index, color=orchard.type))+
+ggplot(c, aes(x=Acres, y=maturity.index, color=orchard.type))+
   geom_smooth(method = "lm") +
-  geom_boxplot()
+  geom_point()
 
 
 
@@ -619,10 +632,6 @@ matpest
 
 
 multiplot(firessc, rootwgt,matpest, cols=2)
-
-
-
-
 
 
 
