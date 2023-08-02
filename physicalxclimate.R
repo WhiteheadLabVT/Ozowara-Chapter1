@@ -74,6 +74,10 @@ Anova(Lat1)
 hist(resid(Lat1))  #looks great
 diagnose(Lat1)
 
+ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
 #Firmness 
 Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat2)
@@ -84,6 +88,10 @@ Anova(Lat2)
 
 hist(resid(Lat2))  #looks great
 diagnose(Lat2)
+
+ggplot(c, aes(x=Latitude, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 #Average Weight 
 Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
@@ -112,6 +120,9 @@ Anova(Lat4)
 hist(resid(Lat4)) 
 diagnose(Lat4)
 
+ggplot(c, aes(x=Latitude, y=maturity.index, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 #Figure: Average Weight x Latitude 
 plot1 = ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
@@ -313,7 +324,16 @@ summary(mgmt1)
 Anova(mgmt1)
 #Herbicides  47.9815  1  4.303e-12 ***
 
-plot(SSC ~ as.factor(Herbicides), data=c)
+ssc_herb <- glmmTMB(SSC ~  orchard.type*Herbicides+ (1|site.code), data=c)
+summary(ssc_herb)
+Anova(ssc_herb)
+#orchard.type            4.0006  1   0.045485 * 
+#Herbicides              7.2867  1   0.006947 **
+
+
+ggplot(c, aes(x=Herbicides, y=SSC, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
 #avgwgt
 mgmt2 <- glmmTMB(avgwgt ~ Cultivation + Herbicides + Com_Mul + Mowing +
@@ -324,16 +344,15 @@ Anova(mgmt2)
 #Acres       11.9567  1  0.0005445 ***
 #Cultivation  3.9132  1  0.0479077 *  
   
-plot(avgwgt ~ as.factor(Cultivation), data=c)
-#avgwgt higher when using cultivation 
-ggplot(c, aes(x=Acres, y=avgwgt, color=orchard.type)) +
-  geom_point() +
-  ylab ("Average Weight (g)") +
-  xlab ("Acres")+
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-#increased acregae results in higher weights 
 
+wgt_acre <- glmmTMB(avgwgt ~orchard.type*Acres+ (1|site.code), data=c)
+summary(wgt_acre)
+Anova(wgt_acre)
+#Acres              9.9260  1    0.00163 **
+
+ggplot(c, aes(x=Acres, y=avgwgt, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 #Firmness 
 mgmt3 <- glmmTMB(Firmness ~ Cultivation + Herbicides + Com_Mul + Mowing +
@@ -342,8 +361,16 @@ mgmt3 <- glmmTMB(Firmness ~ Cultivation + Herbicides + Com_Mul + Mowing +
 summary(mgmt3)
 Anova(mgmt3)
 #Herbicides  4.5342  1    0.03322 *
-plot(Firmness ~ as.factor(Herbicides), data=c)
-#firmness higher when not using pesticides 
+
+
+firm_herb <- glmmTMB(Firmness ~  orchard.type*Herbicides+ (1|site.code), data=c)
+summary(firm_herb)
+Anova(firm_herb)
+#nothing 
+
+ggplot(c, aes(x=Herbicides, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
 #Maturity Index 
 mgmt4 <- glmmTMB(maturity.index ~ Cultivation + Herbicides + Com_Mul + Mowing +
@@ -356,7 +383,18 @@ Anova(mgmt4)
 #Weed_Mats   4.9615  1    0.02592 *
 #Acres       4.4712  1    0.03447 *
 
+mat_herb <- glmmTMB(maturity.index ~  orchard.type*Herbicides+ (1|site.code), data=c)
+summary(mat_herb)
+Anova(mat_herb)
+#orchard.type:Herbicides  6.6521  1   0.009904 ** 
+#organic orchards that used herbicides had higher maturity values 
+ggplot(c, aes(x=Herbicides, y=maturity.index))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
+ggplot(c, aes(x=Herbicides, y=maturity.index, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
 
 
@@ -420,10 +458,20 @@ summary(ssc_pest)
 Anova(ssc_pest)
 #fireblight   15.1670  1  9.841e-05 ***
 
+
+ssc_fire <- glmmTMB(SSC ~ orchard.type*fireblight+ (1|site.code), 
+                    data=c)
+summary(ssc_fire)
+Anova(ssc_fire)
+#orchard.type            3.7194  1   0.053782 . 
+#fireblight              6.7217  1   0.009525 **
+
+
 ggplot(c, aes(x=fireblight, y=SSC, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 #lower SSC with lower reported fireblight
+
 
 ssc_pressure <- glmmTMB(SSC ~ orchard.type*Pest_Index+ (1|site.code), 
                     data=c)
@@ -445,6 +493,19 @@ Anova(wgt_pest)
 #rootrot      8.0041  1   0.004667 **
 #fireblight   4.6472  1   0.031103 *
 
+wgt_rootrot <- glmmTMB(avgwgt ~ orchard.type*rootrot+ (1|site.code), 
+                        data=c)
+summary(wgt_rootrot)
+Anova(wgt_rootrot)
+#rootrot              5.1811  1    0.02283 *
+
+
+wgt_fire <- glmmTMB(avgwgt ~ orchard.type*fireblight+ (1|site.code), 
+                       data=c)
+summary(wgt_fire)
+Anova(wgt_fire)
+#orchard.type:fireblight 75.8075  1     <2e-16 ***
+  
 
 ggplot(c, aes(x=fireblight, y=avgwgt, color=orchard.type))+
   geom_smooth(method = "lm") +
@@ -454,7 +515,7 @@ ggplot(c, aes(x=fireblight, y=avgwgt, color=orchard.type))+
 ggplot(c, aes(x=rootrot, y=avgwgt, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
-
+#increased rootrot increases avg wgt? 
 
 wgt_pressure <- glmmTMB(avgwgt ~ orchard.type*Pest_Index+ (1|site.code), 
                         data=c)
@@ -473,6 +534,24 @@ Anova(frm_pest)
 #codmoth      3.3438  1    0.06746 .
 
 
+frm_aphid <- glmmTMB(Firmness ~ Aphids*Pest_Index+ (1|site.code), 
+                        data=c)
+summary(frm_aphid)
+Anova(frm_aphid)
+#nothing 
+
+frm_amaggots <- glmmTMB(Firmness ~ applemaggots*Pest_Index+ (1|site.code), 
+                     data=c)
+summary(frm_amaggots)
+Anova(frm_amaggots)
+#nothing 
+
+frm_codmoth <- glmmTMB(Firmness ~ codmoth*Pest_Index+ (1|site.code), 
+                     data=c)
+summary(frm_codmoth)
+Anova(frm_codmoth)
+#nothing 
+
 #pest index 
 frm_pressure <- glmmTMB(Firmness ~ orchard.type*Pest_Index+ (1|site.code), 
                         data=c)
@@ -481,6 +560,17 @@ Anova(frm_pressure)
 #nothing 
 
 
+ggplot(c, aes(x=Aphids, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+ggplot(c, aes(x=applemaggots, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+ggplot(c, aes(x=codmoth, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 ###maturity###
 mat_pest <- glmmTMB(maturity.index ~ Aphids+applemaggots+codmoth+
@@ -499,6 +589,38 @@ Anova(mat_pressure)
 ggplot(c, aes(x=Pest_Index, y=maturity.index, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
+
+###pest pressure by mgmt system 
+pest_pressure <- glmmTMB(Pest_Index ~ orchard.type + (1|site.code), 
+                        data=c)
+summary(pest_pressure)
+Anova(pest_pressure)
+#nothing 
+
+#Figures
+firessc <- ggplot(c, aes(x=fireblight, y=SSC, color=orchard.type)) +
+  geom_point() +
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+firessc
+
+rootwgt <- ggplot(c, aes(x=rootrot, y=avgwgt, color=orchard.type)) +
+  geom_point() +
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+rootwgt
+
+matpest <- ggplot(c, aes(x=Pest_Index, y=maturity.index, color=orchard.type)) +
+  geom_point() +
+  geom_smooth(method=glm, se=FALSE)+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+matpest
+
+
+
+multiplot(firessc, rootwgt,matpest, cols=2)
+
+
 
 
 
