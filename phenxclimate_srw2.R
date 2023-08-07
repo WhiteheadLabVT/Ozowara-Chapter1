@@ -1,5 +1,25 @@
-##SRW: please note my comments on this are still in progress as of 07/28/23
-#since I switched to working on the quality script instead. 
+##SRW: #You are doing amazing work on a very complex dataset!! Go Xavier!!!
+#I hope these notes make sense. I could have stared at this for ages longer
+#but I wanted to go ahead and send you what I have. We can talk through it as 
+#needed! Just let me know. Here are my top three next steps:
+
+
+#1) For Q1, suggest updating to include latitude in same model, and use beta 
+#distribution for total phen (rather than transforming). I had a parallel
+#suggestion for the quality analysis
+
+#2) For PCAs, use same distributions as for GLMMs in Q1 (beta for TotalPhen,
+#poisson for richness, etc)
+
+#3) For PC regressions, it won't work to do the PCA on the categorical
+#management variables. Use a GLMM with the original variables as predictors
+
+#4) Start working on integrating this with the fruit quality analysis. Can we have
+#just three questions, each one asking about both fruit quality and chem?
+#I would start by trying to integrate the results from the two scripts into 
+#the same results summary document. See how things work, then at some point you 
+#would also want to integrate the scripts
+
 
 
 #phenolic analysis
@@ -31,8 +51,22 @@ library(car)
 #SRW: I don't have the dataset chem_all_dat???
 #d <- read_csv("chem_all_dat.csv")
 
-#SRW: assuming the above was meant to be the fruit level data??
+#SRW: assuming the above was meant to be the phenolics data
 d <- read.csv("Fruit Level Data.csv")
+
+#Also, I finally realized from working with the data that there really isn't any 
+#"fruit-level" data. I think before I was thinking that you had phenolics
+#data from multiple fruits per tree, but I forgot you made just one 
+#composite sample. So the phenolics data are also "tree-level" data. 
+#In any case, I think the way you have the data divided into 
+#three sheets makes the most sense. Even though you only have one fruit per tree
+#for phenolics, setting that up in the same sheet as the other tree-level
+#data would mean a very wide datasheet with columns for each compound replicated 
+#for each tissue, e.g. TCA.sk, TCA.pu, TCA.se
+#And you will need it in this longer format for some analyses
+#I would just call that datasheets something different in the final version, e.g. 
+#"Phenolics.csv" and "FruitQuality.csv" 
+
 
 View(d)
 d <- d %>%
@@ -40,13 +74,19 @@ d <- d %>%
          PhenRich=rowSums(across(8:29)!=0))
 
 #SRW: "Orchard.num" did not exist, changing to "orchard.num"
+#Also, for this variable, I would suggest re-naming the orchards in all your 
+#main datasheets to an "orchard.id" that includes a character of some sort 
+#(anything but just a number, e.g. CA1, CA2, OR1, WA1, etc), that way it will 
+#just import as a character and you don't have to worry about changing to factor
+
+
 d <- d %>% 
   mutate_at(c("orchard.num", "orchard.type", "site.code", "Tree", "SampleID"), as.factor)
 View(d)
 
 
 #SRW: 1) this is not a logit transform! it is a log10. logit is different
-#     2) worked best for what?? your code should document this logic...
+#     2) what do you mean by "worked best"?? your code should document this logic...
 
 #logit transformation worked the best so were going to use that 
 d <- d %>%
@@ -54,15 +94,35 @@ d <- d %>%
 d$TotalPhentrans[d$TotalPhentrans==-Inf] <- NA
 na.omit(d$TotalPhentrans)
 
-#SRW: so...above you replaced all the zeros with NAs...is that fair?? Need to 
+#SRW: Here you replaced all the zeros with NAs...is that fair?? Need to 
 #carefully consider why you have zeros for total phenolics and whether we think
-#those are real zeros or mess-ups. If they are real zeros you would not want to
-#just eliminate them from a quantitative dataset
+#those are real zeros or mess-ups. If they are real zeros (or "below detection
+#limit") you would not want to just eliminate them from a quantitative dataset
 
 #SRW: Also be sure to very carefully review the values that are really high
 #are some of those outliers due to errors in calculations or chrom processing?
 #the distribution does not usually look so very skewed and zero-inflated for total phen
 
+#you have outliers for all three tissue types, so one way to assess whether they 
+#are truly just super fruits is to see whether the fruits with really high 
+#skin values also have high pulp + seed values
+#(usually there is a strong correlation between different tissues)
+library(tidyr)
+d.temp <- pivot_wider(d[,c(2,4,5,30)], names_from=Tissue, values_from=TotalPhen)
+
+plot(SKIN~PULP, data=d.temp)
+plot(SKIN~SEED, data=d.temp)
+plot(PULP~SEED, data=d.temp)
+
+#seems it is not the case, some of your biggest skin values have near zero for
+#pulp or vice versa
+
+#could also check whether the outliers are driven by high concentrations of all
+#the individual compounds, or just a few big peaks? Or what about the ITSD--did
+#that peak look weird? could throw off all the concentrations. I did not dig that
+#deep into the individual compounds, but I think these are pretty major outliers
+#and you might consider dropping the major outliers from each tissue type, 
+#or at least checking they are not having a big influence
 
 
 
@@ -94,13 +154,14 @@ d.expl <- d[,1:6]
 
 #Also need those by tissue
 #skin 
-d.comp.sk <- d.sk[,8:29]
-d.expl.sk <- d.sk[,1:6]
+d.comp.sk <- d.sk[,8:27]  #SRW: these all said 8:29 but the numbers are different for each tissue
+d.expl.sk <- d.sk[,1:6]   #all the tissue specific random forests below were running with
+                          #with extra variables included
 #pulp
-d.comp.pu <- d.pu[,8:29]
+d.comp.pu <- d.pu[,8:26]
 d.expl.pu <- d.pu[,1:6]
 #Seed
-d.comp.se <- d.se[,8:29]
+d.comp.se <- d.se[,8:27]
 d.expl.se <- d.se[,1:6]
 
 #Orchard & Tree Level Data----------------------------------------
@@ -111,7 +172,11 @@ d.expl.se <- d.se[,1:6]
 ###Orchard and Tree level data will be the same for all###
 Orchard <- read_csv("Orchard Level Data.csv")
 
-#convert columns into charcaters into numeric data  
+#convert columns into charcaters into numeric data 
+
+##SRW: had a comment about this in the quality dataset also, but don't convert
+#Y/N categorical data into numeric. You want to treat these as categories in 
+#your analyses--see my comments below for the PCA
 
 Orchard$Com_Mul <- Orchard$Com_Mul %>% as.factor() %>% as.numeric()
 Orchard$Cultivation <- Orchard$Cultivation %>% as.factor() %>% as.numeric()
@@ -120,7 +185,7 @@ Orchard$Fire_Mgmt <- Orchard$Fire_Mgmt %>% as.factor() %>% as.numeric()
 Orchard$Weed_Mats <- Orchard$Weed_Mats %>% as.factor() %>% as.numeric()
 Orchard$Cover_Crops <- Orchard$Cover_Crops %>% as.factor() %>% as.numeric()
 Orchard$Mowing <- Orchard$Mowing %>% as.factor() %>% as.numeric()
-view(Orchard)
+
 
 
 View(Orchard)
@@ -132,8 +197,6 @@ Tree<- Tree %>%
   mutate(avgwgt=(apple.wgt.3-bag.weight)/3)%>%
   dplyr::select(-c(3:4))
 
-#SRW: if you are going to group and summarize, suggest re-naming (e.g. Tree_Sum) rather
-#than re-defining, since tree is no longer "tree-level"
 
 Tree <- Tree %>%
   group_by(orchard.num) %>%
@@ -147,7 +210,9 @@ View(Tree)
 #Whole Fruit--------------------------------------------------------------------
 
 #SRW: This whole section seems repetitive from above?? Maybe that whole top 
-#section is older code?? But you should only have to do all that once
+#section is older code?? But you should only have to do all these
+#calculations (e.g. TotalPhen) or transformations once, when you first load
+#the dataset. Then divide by tissue type
 
 #Please see my comments in that section about the fruit level total phen
 #data and the transformations!!!
@@ -161,29 +226,35 @@ Fruit0 <- Fruit0 %>%
   mutate(TotalPhentrans= log10(Fruit0$TotalPhen))
 Fruit0$TotalPhentrans[Fruit0$TotalPhentrans==-Inf] <- NA
 na.omit(Fruit0$TotalPhentrans)
-view(Fruit0$TotalPhentrans)
 
-#SRW: added tissue to group_by, see comments below
+
 Fruit0 <- Fruit0 %>%
-  group_by(orchard.num, Tissue) %>%
+  group_by(orchard.num) %>%   
   summarise_at(c("TotalPhen", "PhenRich","TotalPhentrans")
                , mean, na.rm = TRUE)
+
+
+##SRW: So this was averaging across all the tissue types?? I am not sure that
+#makes sense to do??  I think if you really wanted to look at whole fruit 
+#phenolics, you would want to have some values for biomass investment in the
+#different tissues, and then convert concentrations for each tissue into total
+#mass of phenolics produced by the fruit. 
+
+
 
 CCD <- left_join(Tree, Orchard, by="orchard.num")
 CCD <- left_join(CCD, Fruit0, by="orchard.num")
 View(CCD)
 
-##SRW: if you add tissue in as a grouping variable above (L164), you will not need
-#any of the below sections that repeat this for each tissue, you can just split
-#CCD by tissue type
-#all of L 182-266 could be deleted
-
-SkinD <- filter(CCD, Tissue=="SKIN")
-PulpD <- filter(CCD, Tissue=="PULP")
-SeedD <- filter(CCD, Tissue=="SEED")
 
 
 #Skin---------------------------------------------------------------------------
+
+#SRW: see comments above about the transformations and the omitting of NAs.
+#Also, ideally you can do any calculations (e.g. for phenolic richness) and
+#transforms just once on the whole dataset, before
+#you split by tissue. Makes the code simpler and reduces chance of error
+
 #condense chem data by tissue and orchard 
 Fruit1 <- read_csv("Fruit Level Data.csv")
 Fruit1 <- Fruit1 %>%
@@ -209,10 +280,13 @@ summarise_at(c("TotalPhen", "PhenRich", "TotalPhentrans")
 
 View(Fruit1)
 
-#combine all data sets to 120 values 
+
+#combine all data sets to 120 values    #SRW: 120?
 SkinD <- left_join(Tree, Orchard, by="orchard.num")
 SkinD <- left_join(SkinD, Fruit1, by="orchard.num")
 View(SkinD)
+
+
 
 #Pulp---------------------------------------------------------------------------
 Fruit2 <- read_csv("Fruit Level Data.csv")
@@ -241,6 +315,7 @@ View(Fruit2)
 PulpD <- left_join(Tree, Orchard, by="orchard.num")
 PulpD <- left_join(PulpD, Fruit2, by="orchard.num")
 View(PulpD)
+
 #Seed#--------------------------------------------------------------------------
 Fruit3 <- read_csv("Fruit Level Data.csv")
 Fruit3 <- Fruit3 %>%
@@ -285,16 +360,70 @@ View(SeedD)
 #don't think a log transform and dropping all the zeros makes sense for this 
 #type of data
 
-#Was reading more about the beta distribution and we actually don't need the 
-#residuals to be normally distributed, so I would lead towards these models
-#in general it is preferred to use distributions to fit the data rather
+#SRW: Was reading more about the beta distribution and we actually don't need the 
+#residuals to be normally distributed, so I would lean towards beta models.
+#In general it is preferred to use distributions to fit the data rather
 #than transform
+#this post is useful and has some good refs, though I have not explored in detail
+#https://stats.stackexchange.com/questions/332648/how-do-i-perform-diagnostic-checks-on-a-beta-regression
 
-tp2 <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Tissue + (1|site.code/orchard.num/Tree), 
+#SRW: similar to my suggestion with the quality analysis, I would suggest 
+#including latitude here in this first question, rather than having a separate
+#analysis that repeats all this, but just with an extra variable
+#see related comments on the quality script
+#Also, I think ultimately you will want to combine the questions for phenolics
+#and quality, so it is helpful to set this up as parallel as possible
+
+#Q1 can be something like: How do management systems (organic vs conventional) 
+#interact with broad climatic differences across latitude to shape fruit
+#chemistry and quality?
+
+#-------SRW suggested framework for Q1
+
+#adding latitude to fruit-level dataset
+Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
+d <- left_join(d, Orchard[,c(2,4)], by="orchard.num")
+
+#3-way interaction model, orchard type, latitude, and tissue
+m.tp <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Tissue*Latitude + (1|site.code/orchard.num/Tree), 
                data=d, family=beta_family(link="logit"))
-summary(tp2)
-Anova(tp2)
+summary(m.tp)
+Anova(m.tp)
 
+#strong effects of tissue and interaction between tissue and orchard type
+#suggest splitting by tissue
+d.sk <- left_join(d.sk, Orchard[,c(2,4)], by="orchard.num")
+d.pu <- left_join(d.pu, Orchard[,c(2,4)], by="orchard.num")
+d.se <- left_join(d.se, Orchard[,c(2,4)], by="orchard.num")
+
+#here you can take Tree out of the random effects because you only have
+#one sample per tree
+m.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+               data=d.sk, family=beta_family(link="logit"))
+summary(m.tp.sk)
+Anova(m.tp.sk)
+
+m.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+                 data=d.pu, family=beta_family(link="logit"))
+summary(m.tp.pu)
+Anova(m.tp.pu)
+#marginal orchard type x latitude interaction
+
+
+m.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Latitude + (1|site.code/orchard.num/Tree), 
+                 data=d.se, family=beta_family(link="logit"))
+summary(m.tp.se)
+Anova(m.tp.se)
+#effects of orchard type
+
+
+#from here you could try splitting by orchard type OR dividing into two latitude
+#groups, as we did with the quality analysis
+
+#Also, I would do the same here with phenolic richness, same model structure 
+#but with a poisson model
+
+##-----------SRW section end
 
 
 
@@ -342,6 +471,10 @@ hist(resid(pr1))
 
 
 #phen rich per tissue type 
+
+#SRW: you can remove Tree from random effects if you only have one sample
+#per tree
+
 pr.p <- glmmTMB(PhenRich ~ orchard.type+(1|site.code/orchard.num/Tree), data=d.pu, family= poisson)
 summary(pr.p)
 Anova(pr.p)
@@ -360,6 +493,10 @@ Anova(pr.se)
 
 #Which compounds distinguish fruits raised in their respective management systems?----------
 #Analysis: NMDS and random forest
+
+##SRW: in general for these analyses, I think they would ultimately fall under Q1
+#Should we also consider latitude?? 
+
 ###NMDS###
 #someone online said to change the distance due to 0 values 
 
@@ -369,7 +506,7 @@ Anova(pr.se)
 
 m.NMDS <- metaMDS(d.comp, distance = "euclidean", trymax=100, autotransform =TRUE)
 m.NMDS
-plot(m.NMDS, type="t")
+
 
 #Dimensions: 2 
 #Stress:     0.1048574 (fair?)
@@ -379,7 +516,9 @@ plot(m.NMDS, type="t")
 #for plotting, need to add columns that give values for 
 #colors and symbols we want in plot
 d.expl$Color <- recode_factor(d.expl$orchard.type,
-                              Organic="red", Conventional="blue")
+                              "Organic "="red", "Conventional "="blue")
+  #SRW: error here was because organic and conventional have space in them, so 
+  #the re-code factor wasn't working
 d.expl$Symbol <- recode_factor(d.expl$Tissue,
                                SKIN=8, PULP=1, SEED=2)
 d.expl$Symbol <- as.numeric(as.character(d.expl$Symbol))
@@ -389,14 +528,35 @@ d.expl$orchard.type = as.factor(d.expl$orchard.type)
 
 plot(m.NMDS, type="n") #plots the ordination axes only
 points(m.NMDS, pch=d.expl$Symbol,
-       col=as.character(d.expl$Color), cex = 0.8)     
+       col=as.character(d.expl$Color), cex = 0.8)  
+
+
+#SRW: for nice plots for the paper, it will be much better to extract the 
+#axes from the NMDS results into a dataframe, add to the explanatory variable
+#dataframe, and then plot with ggplot. Will give a lot more flexibility
+d.NMDS <- as.data.frame(m.NMDS$points)
+d.NMDS$SampleID <- rownames(d.NMDS)
+d.NMDS <- left_join(d.NMDS, d.expl, by="SampleID") 
+
+
+
 
 #PERMANOVA can test whether the visualized differences are significant
 ##this portion doesn't work because of 0s 
 m.perm <- adonis2(d.comp~orchard.type*Tissue, data=d.expl)
 m.perm
 
+#SRW: this error is because you have some rows with all zeros. Need to double triple
+#check that those really are all zeros, and, if so, you would have to just remove
+#those samples from the dataset in order to make this run
+
+
+
 ###Random Forest###
+
+##For all of these models 
+
+
 ###skin
 m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$orchard.type, importance=TRUE, 
                          proximity=TRUE, oob.prox=TRUE, ntree=2000)
@@ -426,7 +586,7 @@ summary.aov(m1.man.sk)
 #epi= 0.4211
 
 #some quick plots of all of them
-par(mfrow=c(3,3))
+par(mfrow=c(1,3))
 for (i in 1:length(colnames(d.comp.sk.sel))){
   d.temp=d.comp.sk.sel[,i]
   plot(d.temp ~ d.expl.sk$orchard.type, ylab=colnames(d.comp.sk.sel)[i])
@@ -438,6 +598,8 @@ dev.off()
 
 m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
                          proximity=TRUE, oob.prox=TRUE, ntree=2000)
+  #SRW: error here was because d.comp.pu had extra variables in it (total phen and richness)
+  #that had NAs; I edited code toward the top to fix this where we set up the data
 m1.rf.pu$importance
 varImpPlot(m1.rf.pu)
 MDSplot(m1.rf.pu, d.expl.pu$orchard.type)
@@ -447,10 +609,18 @@ m1.rf.b.pu
 plot(m1.rf.b.pu)  
 # No attributes deemed important.
 
+#SRW: One of the times I ran this I got three Ch.A, PB2, U1  
+#there is an element of random here so if you
+#run multiple times sometimes you get different answers. don't try this at home
+
 getSelectedAttributes(m1.rf.b.pu) 
 
 
 ##Running MANOVAS (needs to be fixed)
+
+#SRW: this error is because you have no selected attributes!! So it is trying
+#to run the code on an empty dataframe. 
+
 d.comp.pu.sel <- data.matrix(d.comp.pu[,getSelectedAttributes(m1.rf.b.pu)])
 m1.man.pu <-manova(d.comp.pu.sel ~ d.expl.pu$orchard.type)
 summary(m1.man.pu)  #overall significance for MANOVA
@@ -492,7 +662,7 @@ summary.aov(m1.man.se)
 #reynoutrin = 0.8561
 #U2 =  0.006278 **
 
-par(mfrow=c(3,3))
+par(mfrow=c(2,2))  #SRW: set dimensions of how you want plots arranged here
 for (i in 1:length(colnames(d.comp.se.sel))){
   d.temp=d.comp.se.sel[,i]
   plot(d.temp ~ d.expl.se$orchard.type, ylab=colnames(d.comp.se.sel)[i])
@@ -501,6 +671,11 @@ dev.off()
 #values higher in conventional orchards 
 
 #How do management systems interact with broad climatic changes across latitude?-----
+
+###SRW: Suggest dropping all of these models with lat, long, elev, etc, in favor 
+#of the glmmTMB models I suggested above with orchard.type*Tissue*Latitude 
+#similar to the structure I suggested with the quality analysis 
+
 
 ###whole fruit###
 #Phen Rich 
@@ -551,6 +726,17 @@ Anova(tp.pw)
 #can technically use the same first PCA for all 4 different analyses because
 #the values of the selected variables are the same
 
+#SRW: yes! this will also be true for the quality response variables
+#but I don't think you need to do with the whole fruit (see comments above)
+
+
+#SRW: I think whatever distribution we use for the TotalPhen variable in the 
+#other GLMMs, the same should be applied here (e.g. beta distribution)
+
+
+
+
+
 ###Principle Components Analysis###
 p_clim <- dplyr::select(CCD,c("Prox.Water", "Longitude","Latitude","elevation", 
 "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
@@ -572,8 +758,9 @@ head(results$x)
 dev.off()
 biplot(results,
        col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
-
+       scale = TRUE)   
+  #SRW: not really sure what that xlabs argument was trying to do, but 
+  #it was giving an error like it was the wrong length, so I just deleted it
 
 #calculate total variance explained by each principal component
 summary(results)$importance
@@ -602,7 +789,7 @@ pc_clim <- cbind(pc_clim, CCD)
 
 #TotalPhen
 p1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
-                (1|site.code), data=pc_clim)
+                (1|site.code.x), data=pc_clim)
 summary(p1)
 #PC2 p= 2.25e-05 ***     
 
@@ -616,7 +803,7 @@ results$rotation
 
 #PhenRich
 p2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
-                (1|site.code), data=pc_clim)
+                (1|site.code.x), data=pc_clim)
 summary(p2)
 #PC2 p= 0.00019 ***    
 
@@ -633,13 +820,13 @@ pc.sk_clim <- cbind(pc.sk_clim, SkinD)
 
 #TotalPhen
 p.sk1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5
-                 +(1|site.code), data=pc.sk_clim)
+                 +(1|site.code.x), data=pc.sk_clim)
 summary(p.sk1)#nothing
 
 #PhenRich
 psk2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
-                  (1|site.code), data=pc.sk_clim)
-summary(psk2)#nothing
+                  (1|site.code.x), data=pc.sk_clim)
+summary(psk2)#nothing  #SRW: I am seeing many things!!!
 
 
 #PULP#
@@ -648,7 +835,7 @@ pc.pu_clim <- cbind(pc.pu_clim, PulpD)
 
 ##TotalPhen###
 ppu1 <- glmmTMB(TotalPhentrans ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
-                  (1|site.code), data=pc.pu_clim)
+                  (1|site.code.x), data=pc.pu_clim)
 summary(ppu1)
 #orchard.typeOrganic p= 0.0706 . 
 #PC2 p= 3.86e-05 ***
@@ -661,7 +848,7 @@ results$rotation
 #slight significance in organic 
 
 ppu2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 + 
-                  (1|site.code), data=pc.pu_clim)
+                  (1|site.code.x), data=pc.pu_clim)
 summary(ppu2)
 #PC2 p= 0.000558 ***
 #PC3 p= 0.052757 .     
@@ -692,7 +879,7 @@ results$rotation
 #total phen increase specific to organic 
 
 p.se2 <- glmmTMB(PhenRich ~orchard.type+ PC1 + PC2 + PC3 + PC4 + PC5 +
-                   (1|site.code), data=pc.se_clim)
+                   (1|site.code.x), data=pc.se_clim)
 summary(p.se2)
 #orchard.typeOrganic p=0.0133 *
 #PC1 0.0050 **   
@@ -707,9 +894,32 @@ plot(PhenRich ~ PC5, data=pc.se_clim)
 results$rotation
 
 #phen rich increase in organic systems 
+#SRW: actually phen rich is LOWER in organic--the opposite of what I would predict
+plot(PhenRich ~ as.factor(orchard.type), data=pc.se_clim)
+
+
+#SRW: these PCA results are all pretty interesting!! Some very (surprisingly!)
+#strong effects. And one thing I find super interesting too is that sometimes
+#the orchard type is coming out super significant even though it was not so much
+#without the abiotic variables included. That might be because of the transform 
+#on the total phen or also the the averaging?
+#I wonder if there was just a lot of within orchard variation that was making it
+#less clear 
+
+#It will take some thought to figure out how to present this in a digestible way
+
+
 
 
 #Which specific management practices are the most important drivers of fruit chem?----
+
+#SRW: Here we have the same issue as in the quality analysis, that the 
+#management variables are mostly categorical variables (not continuous)
+#so it doesn't make sense to do a PCA. I think we should just do a regular
+#linear model with all the raw management variables included
+#need to first make sure they are all coded properly as factors if they are just
+#yes/no categories
+
 
 #Analysis: principle components analysis followed by PC regression with each variable
 #followed by a correlation matrix for visual interpretation 
@@ -945,7 +1155,7 @@ head(results2$x)
 #this plots the results of the PCAs into a two dimensional representation 
 biplot(results2,
        col = c('darkblue', 'red'),
-       scale = TRUE, xlabs = rep("*", 24))
+       scale = TRUE)
 
 
 #calculate total variance explained by each principal component
@@ -974,7 +1184,7 @@ p_pest <- cbind(p_pest, CCD)
 
 #TotalPhen
 p.w1 <- glmmTMB(TotalPhentrans ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 
-              + PC8 +(1|site.code), data=p_pest)
+              + PC8 +(1|site.code.x), data=p_pest)
 summary(p.w1)
 #orchard.typeOrganic -0.17295    0.05330   -3.24  0.00117 ** 
 #PC3                  0.07161    0.02988    2.40  0.01652 *  
