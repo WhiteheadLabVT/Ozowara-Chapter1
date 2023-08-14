@@ -219,7 +219,7 @@ ggplot(df, aes(x=PC, y=var_explained)) +
   ylim(0, 1)
 
 
-#PC's 6, 7, 8, 9 are very low/ not worth looking at
+#PC's 5, 6, 7, 8, 9 are very low/ not worth looking at
 
 ##Linear models PC x quality 
 
@@ -233,16 +233,22 @@ hist(c$maturity.index)
 
 ###Firmness###
 
-p1 <- glmmTMB(Firmness ~ PC1 + PC2 + PC3 + PC4 + PC5+ (1|site.code), data=pc_clim)
+p1 <- glmmTMB(Firmness ~ PC1 + PC2 + PC3 + PC4 + (1|site.code/orchard.num), data=pc_clim)
 summary(p1)
-#PC1  2.26e-10 ***
-#PC3  1.18e-06 ***
-#PC5  0.0267 *  
+#PC1  7.51e-09 ***
+#PC3  4.43 9.52e-06 ***  
 
-#strong positive effects of PC1 + PC2 and strong negative effect of PC3
+f_pc1 <- glmmTMB(Firmness ~ orchard.type*PC1 + (1|site.code/orchard.num), data=pc_clim)
+summary(f_pc1)
+#PC1                       1.8549     0.5581   3.324 0.000889 ***
+
+f_pc3 <- glmmTMB(Firmness ~ orchard.type*PC3 + (1|site.code/orchard.num), data=pc_clim)
+summary(f_pc3)
+#PC3                        2.851      1.561   1.826   0.0679 .  
+
+
 plot(Firmness ~ PC1, data=pc_clim)
 plot(Firmness ~ PC3, data=pc_clim)
-plot(Firmness ~ PC5, data=pc_clim)
 
 #So, to interpret this you go back to look at the loading on each PC axis.
 results$rotation
@@ -250,28 +256,50 @@ results$rotation
 
 
 ###SSC###
-P2 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data= pc_clim)
+P2 <- glmmTMB(SSC ~ + PC1 + PC2 + PC3 + PC4 + (1|site.code/orchard.num), data= pc_clim)
 summary(P2)
-#PC1 2e-16 ***
-#PC2 0.00407 ** 
-#PC3 0.00172 ** 
-#PC5 0.00243 ** 
+#PC1                 -1.01358    0.15615  -6.491 8.51e-11 ***
+#PC2                 -0.58994    0.28553  -2.066   0.0388 *  
+#PC3                  0.87971    0.37121   2.370   0.0178 * 
 
-plot(SSC ~ PC1, data=pc_clim)
+
+s_pc1 <- glmmTMB(SSC ~ orchard.type*PC1 + (1|site.code), data=pc_clim)
+summary(s_pc1)
+#PC1                     -1.10112    0.21770  -5.058 4.24e-07 ***
+  
+s_pc2 <- glmmTMB(SSC ~ orchard.type*PC2 + (1|site.code/orchard.num), data=pc_clim)
+summary(s_pc2)
+#nothing
+
+s_pc3 <- glmmTMB(SSC ~ orchard.type*PC3 + (1|site.code/orchard.num), data=pc_clim)
+summary(s_pc3)
+#nothing
+
+plot(SSC ~ PC1*orchard.type, data=pc_clim)
 plot(SSC ~ PC2, data=pc_clim)
 plot(SSC ~ PC3, data=pc_clim)
-plot(SSC ~ PC5, data=pc_clim)
-
 
 results$rotation
 
 
 ###AVGWGT
-p3 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc_clim)
+p3 <- glmmTMB(avgwgt ~ + PC1 + PC2 + PC3 + PC4 + (1|site.code/orchard.num), data=pc_clim)
 summary(p3)
-#PC2 0.0502 .  
-#PC3 0.0463 *  
-#PC4 0.0378 *  
+#PC2           -8.186      4.121  -1.986   0.0470 *  
+#PC3           10.331      5.216   1.981   0.0476 *  
+#PC4          -12.449      6.064  -2.053   0.0401 * 
+
+
+w_pc2 <- glmmTMB(avgwgt ~ orchard.type*PC2 + (1|site.code/orchard.num), data=pc_clim)
+summary(w_pc2)
+#nothing 
+w_pc3 <- glmmTMB(avgwgt ~ orchard.type*PC3 + (1|site.code/orchard.num), data=pc_clim)
+summary(w_pc3)
+#PC3                       19.002      8.778   2.165   0.0304 *  
+
+w_pc4 <- glmmTMB(avgwgt ~ orchard.type*PC4 + (1|site.code/orchard.num), data=pc_clim)
+summary(w_pc4)
+#nothing 
 
 plot(avgwgt ~ PC2, data=pc_clim)
 plot(avgwgt ~ PC3, data=pc_clim)
@@ -281,11 +309,19 @@ results$rotation
 
 
 ###Maturity Index 
-p4 <- glmmTMB(maturity.index ~ orchard.type + PC1 + PC2 + PC3 + PC4 + PC5 + (1|site.code), data=pc_clim)
+p4 <- glmmTMB(maturity.index ~ PC1 + PC2 + PC3 + PC4 + (1|site.code/orchard.num), data=pc_clim)
 summary(p4)
-#PC1 0.000889 ***
-#PC4 0.025583 *  
- 
+#PC1         -0.26478    0.08360  -3.167  0.00154 ** 
+#PC4         -0.43710    0.20314  -2.152  0.03142 *  
+
+
+m_pc1 <- glmmTMB(maturity.index ~ orchard.type*PC1 + (1|site.code/orchard.num), data=pc_clim)
+summary(m_pc1)
+#PC1                     -0.27376    0.09559  -2.864  0.00419 ** 
+
+m_pc4 <- glmmTMB(maturity.index ~ orchard.type*PC4 + (1|site.code), data=pc_clim)
+summary(m_pc4)
+#nothing
 
 plot(maturity.index ~ PC1, data=pc_clim)
 plot(maturity.index ~ PC4, data=pc_clim)
@@ -465,7 +501,7 @@ fireblight= c$`Fire Blight`
 
 ###SSC###
 ssc_pest <- glmmTMB(SSC ~ Aphids+applemaggots+codmoth+
-powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code/orchard.num), 
                  data=c)
 summary(ssc_pest)
 Anova(ssc_pest)
