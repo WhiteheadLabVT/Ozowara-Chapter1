@@ -47,3 +47,51 @@ physicalxlcimate
 -with comments went and started working three seperate data sheets at each collection leevel:
 ochard, tree, fruit
 
+
+
+08/14
+phenolics code
+
+1. Data Organization and Restructuring
+- I added 12 new compounds to the data set under the "revised" phenolics document 
+- I broke the data sheet into 4: whole fruit, skin, pulp, seed
+- after Shapiro tests all totalphen columns except Pulp were normally distributed 
+
+2. How do management systems interact with broad climatic changes across latitude?
+- This analysis now mirrors the physical quality analysis 
+- Seeds had a significant interaction with Latitude, which was further explored 
+by breaking into "high" and "low"
+
+3. Which compounds distinguish fruits raised in their respective management systems?
+- I got everything to work using the Bray nmds 
+- after running the random forest, I ran individual GLMs looking at the significant
+compound,and its interaction with orchard type 
+
+4. Which abiotic factors are the most important drivers of fruit chem?
+- I used PCs 1-4 which account for 95% of explained variance
+- I examined the the PCS all together, then examined against orchard.type if there 
+was a significant interaction
+- These analyses were split and ran against the 4 levels of fruit data sets 
+
+5. Which specific management practices are the most important drivers of fruit chem
+- same as physical quality analysis 
+- These analyses were split and ran against the 4 levels of fruit data sets 
+- I examined the the PCS all together, then examined against orchard.type if there 
+was a significant interaction
+
+6. Which pest or diseases presence has the most significant affect on fruit chem
+- same as 5.
+
+7. How does fruit quality compare to total phenolics and phenolic richness
+- same as 5.
+
+
+
+
+
+
+
+
+
+
+
