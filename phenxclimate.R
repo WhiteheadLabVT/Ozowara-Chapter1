@@ -1040,3 +1040,5 @@ ggplot(c, aes(x=avgwgt, y=PhenRich, color=orchard.type))+
   geom_point()
 #phen rich decrease as avgwgt increases? 
 
+
+
