@@ -1074,27 +1074,42 @@ Anova(mat_herb)
 #orchard.type:Herbicides  6.6521  1   0.009904 ** 
 #organic orchards that used herbicides had higher maturity values 
 
-
-mat_herb <- glmmTMB(maturity.index ~  orchard.type*Acres+ (1|site.code), data=c)
-summary(mat_herb)
-Anova(mat_herb)
-#Acres              5.5277  1    0.01872 *
-
-
 ggplot(c, aes(x=Herbicides, y=maturity.index))+
   geom_smooth(method = "lm") +
   geom_boxplot()
+#organic orchards that used herbicides had higher maturity values 
+
+
+mat_acre <- glmmTMB(maturity.index ~  orchard.type*Acres+ (1|site.code), data=c)
+summary(mat_acre)
+Anova(mat_acre)
+#Acres              5.5277  1    0.01872 *
 
 ggplot(c, aes(x=Acres, y=maturity.index, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 
+#NaNs 
+mat_mow <- glmmTMB(maturity.index ~  orchard.type*Mowing+ (1|site.code), data=c)
+summary(mat_mow)
+Anova(mat_mow)
+#Acres    
+
+#NaNs
+mat_mats <- glmmTMB(maturity.index ~  orchard.type*Weed_Mats+ (1|site.code), data=c)
+summary(mat_mats)
+Anova(mat_mats)
+#Acres    
 
 #Q3-B: Fruit Chemistry ---------------------------------------------------------
-#Total Phenolics
+###Total Phenolics###
+
+#Whole section no longer works. needs to be fixed 
+
 #whole fruit 
-mgmt.c <- glmmTMB(TotalPhen ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                    Weed_Mats + Cover_Crops + Acres + (1|site.code), data=c,)
+mgmt.c <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Cultivation + Herbicides + Com_Mul + Mowing +
+                    Weed_Mats + Cover_Crops + Acres + (1|site.code), data=c,
+                  family=beta_family(link="logit"))
 summary(mgmt.c)
 Anova(mgmt.c)
 #Mowing      3.1708  1    0.07496 .
@@ -1131,42 +1146,55 @@ Anova(mgmt.se)
 #Nothing 
 
 
-#Phenolics Richness 
+###Phenolics Richness###
 #whole fruit 
 mgmt.pr.c <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                       Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                       Weed_Mats + Cover_Crops + Acres + (1|site.code), 
                      data=c)
 summary(mgmt.pr.c)
 Anova(mgmt.pr.c)
-#Cultivation   7.6732  1   0.005605 ** 
-#Mowing        4.2425  1   0.039425 *  
-#Weed_Mats     3.9059  1   0.048116 *   
+#Acres       2.9638  1    0.08515 .
+
+mgmt.pr.c.acres <- glmmTMB(PhenRich ~ orchard.type*Acres + (1|site.code), 
+                     data=c)
+summary(mgmt.pr.c.acres)
+Anova(mgmt.pr.c.acres)
+#nothing 
+
+ggplot(c, aes(x=Acres, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+
 
 #per tissue #
 #Skin 
 mgmt.pr.sk <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                        Weed_Mats + Cover_Crops + Acres + (1|site.code), 
                       data=SkinD)
 summary(mgmt.pr.sk)
 Anova(mgmt.pr.sk)
-#Herbicides  3.8902  1   0.048569 * 
+#Acres       4.4395  1    0.03512 *
+  
 
-
-mgmt.pr.sk.h <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+mgmt.pr.sk.ac <- glmmTMB(PhenRich ~ orchard.type*Acres+ (1|site.code), 
                         data=SkinD)
-summary(mgmt.pr.sk.h)
-Anova(mgmt.pr.sk.h)
-#Herbicides              4.7020  1    0.03013 *
+summary(mgmt.pr.sk.ac)
+Anova(mgmt.pr.sk.ac)
+#nothing 
+
+ggplot(SkinD, aes(x=Acres, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 
 #Pulp 
 mgmt.pr.pu <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                        Weed_Mats + Cover_Crops + Acres + (1|site.code), 
                       data=PulpD)
 summary(mgmt.pr.pu)
 Anova(mgmt.pr.pu)
-#Cultivation  11.8454  1  0.0005781 ***
-#Com_Mul       5.7323  1  0.0166559 * 
+#Cultivation 5.0540  1    0.02457 *
 
 mgmt.pr.pu.c <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
                         data=PulpD)
@@ -1174,29 +1202,24 @@ summary(mgmt.pr.pu.c)
 Anova(mgmt.pr.pu.c)
 #Cultivation              3.2555  1    0.07119 .
 
-mgmt.pr.pu.cm <- glmmTMB(PhenRich ~ orchard.type*Com_Mul+ (1|site.code), 
-                         data=PulpD)
-summary(mgmt.pr.pu.cm)
-Anova(mgmt.pr.pu.cm)
-#orchard.type:Com_Mul 2.8062  1     0.0939 .
-
 #Visualize this 
-ggplot(c, aes(x=Com_Mul, y=PhenRich, color=orchard.type))+
+ggplot(PulpD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_boxplot()
 
+
 #Seed
 mgmt.pr.se <- glmmTMB(PhenRich ~ Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                        Weed_Mats + Cover_Crops + Acres + (1|site.code), 
                       data=SeedD)
 summary(mgmt.pr.se)
 Anova(mgmt.pr.se)
-#Cultivation  8.4221  1   0.003707 ** 
-#Herbicides   4.7221  1   0.029778 *  
-#Mowing       3.9252  1   0.047567 *  
-#Weed_Mats    6.7875  1   0.009180 ** 
-#Cover_Crops  6.7150  1   0.009560 ** 
-#Acres        9.0503  1   0.002626 ** 
+#Cultivation 3.0626  1   0.080113 . 
+#Com_Mul     3.3682  1   0.066464 . 
+#Mowing      2.7575  1   0.096802 . 
+#Weed_Mats   6.3019  1   0.012061 * 
+#Cover_Crops 5.1705  1   0.022974 * 
+#Acres       6.9533  1   0.008367 **
 
 #Cultivation 
 mgmt.pr.se.cu <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
@@ -1205,13 +1228,22 @@ summary(mgmt.pr.se.cu)
 Anova(mgmt.pr.se.cu)
 #orchard.type:Cultivation 2.9180  1    0.08760 .
 
+ggplot(SeedD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
-#Herbicides 
-mgmt.pr.se.he <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+
+#Com_Mul  
+mgmt.pr.se.cm <- glmmTMB(PhenRich ~ orchard.type*Com_Mul+ (1|site.code), 
                          data=SeedD)
-summary(mgmt.pr.se.he)
-Anova(mgmt.pr.se.he)
-#nothing 
+summary(mgmt.pr.se.cm)
+Anova(mgmt.pr.se.cm)
+#Com_Mul              9.8391  1   0.001708 **
+
+ggplot(SeedD, aes(x=Com_Mul, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
+
 
 #Mowing 
 mgmt.pr.se.m <- glmmTMB(PhenRich ~ orchard.type*Mowing+ (1|site.code), 
@@ -1232,7 +1264,13 @@ mgmt.pr.se.cc <- glmmTMB(PhenRich ~ orchard.type*Cover_Crops+ (1|site.code),
                          data=SeedD)
 summary(mgmt.pr.se.cc)
 Anova(mgmt.pr.se.cc)
-#nothing 
+#orchard.type             5.8226  1    0.01582 *
+#Cover_Crops              5.3987  1    0.02015 *
+
+
+ggplot(SeedD, aes(x=Cover_Crops, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
 
 #Acres 
 mgmt.pr.se.a <- glmmTMB(PhenRich ~ orchard.type*Acres+ (1|site.code), 
@@ -1240,8 +1278,13 @@ mgmt.pr.se.a <- glmmTMB(PhenRich ~ orchard.type*Acres+ (1|site.code),
 summary(mgmt.pr.se.a)
 Anova(mgmt.pr.se.a)
 #nothing 
-#Q4: Which pest or diseases presence has the most significant affect on fruit quality-----
 
+ggplot(SeedD, aes(x=Acres, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+
+#Q4: Which pest or diseases presence has the most significant affect on fruit quality-----
 #visualize pest data in indices 
 ggpairs(c, columns=25:42) 
 
@@ -1257,8 +1300,8 @@ ggplot(d, aes(x=pest, y=index))+
 #disease: apple scab, bitter rot, fireblight, powdery mildew, root rot 
 
 #correlation matrix
-p_pest <- dplyr::select(c,c("Powdery mildew",     
-                            "Apple scab","Root Rot","Fire Blight","Apple Maggots","Codling Moth","Aphids","Bitter Rot"))
+p_pest <- dplyr::select(c,c(Aphids, Apple.Maggots, Codling.Moth, 
+Powdery.mildew, Bitter.Rot, Apple.scab, Root.Rot, Fire.Blight))
 
 rcorr(as.matrix(p_pest))
 corrplot(cor(p_pest))
@@ -1282,28 +1325,30 @@ corrplot(cor(p_pest), p.mat = testRes$p, method = 'color', diag = FALSE, type = 
 #maggots and coddling moth 
 #Q4-A: Physical Quality---------------------------------------------------------
 ###SSC###
-ssc_pest <- glmmTMB(SSC ~ Aphids+applemaggots+codmoth+
-                      powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code/orchard.num), 
+ssc_pest <- glmmTMB(SSC ~ Aphids+Apple.Maggots+Codling.Moth+
+                      Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ 
+                      (1|site.code), 
                     data=c)
 summary(ssc_pest)
 Anova(ssc_pest)
 #fireblight   15.1670  1  9.841e-05 ***
 
 
-ssc_fire <- glmmTMB(SSC ~ orchard.type*fireblight+ (1|site.code), 
+ssc_fire <- glmmTMB(SSC ~ orchard.type*Fire.Blight+ (1|site.code), 
                     data=c)
 summary(ssc_fire)
 Anova(ssc_fire)
-#orchard.type            3.7194  1   0.053782 . 
-#fireblight              6.7217  1   0.009525 **
+#orchard.type             3.7194  1   0.053782 . 
+#Fire.Blight              6.7217  1   0.009525 **
 
 
-ggplot(c, aes(x=fireblight, y=SSC, color=orchard.type))+
+ggplot(c, aes(x=Fire.Blight, y=SSC, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 #lower SSC with lower reported fireblight
 
 
+#pest pressure index 
 ssc_pressure <- glmmTMB(SSC ~ orchard.type*Pest_Index+ (1|site.code), 
                         data=c)
 summary(ssc_pressure)
@@ -1316,38 +1361,38 @@ ggplot(c, aes(x=Pest_Index, y=SSC, color=orchard.type))+
 #higher SSC in orangic orchards with high pest indexes 
 
 ###avgwgt###
-wgt_pest <- glmmTMB(avgwgt ~ Aphids+applemaggots+codmoth+
-                      powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+wgt_pest <- glmmTMB(avgwgt ~ Aphids+Apple.Maggots+Codling.Moth+
+                      Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
                     data=c)
 summary(wgt_pest)
 Anova(wgt_pest)
 #rootrot      8.0041  1   0.004667 **
 #fireblight   4.6472  1   0.031103 *
 
-wgt_rootrot <- glmmTMB(avgwgt ~ orchard.type*rootrot+ (1|site.code), 
+wgt_rootrot <- glmmTMB(avgwgt ~ orchard.type*Root.Rot+ (1|site.code), 
                        data=c)
 summary(wgt_rootrot)
 Anova(wgt_rootrot)
 #rootrot              5.1811  1    0.02283 *
 
+ggplot(c, aes(x=Root.Rot, y=avgwgt, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+#increased rootrot increases avg wgt? 
 
-wgt_fire <- glmmTMB(avgwgt ~ orchard.type*fireblight+ (1|site.code), 
+
+wgt_fire <- glmmTMB(avgwgt ~ orchard.type*Fire.Blight+ (1|site.code), 
                     data=c)
 summary(wgt_fire)
 Anova(wgt_fire)
 #orchard.type:fireblight 75.8075  1     <2e-16 ***
 
-
-ggplot(c, aes(x=fireblight, y=avgwgt, color=orchard.type))+
+ggplot(c, aes(x=Fire.Blight, y=avgwgt, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 #avgwgt decrease as fireblight increases 
 
-ggplot(c, aes(x=rootrot, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increased rootrot increases avg wgt? 
-
+#pest pressure index 
 wgt_pressure <- glmmTMB(avgwgt ~ orchard.type*Pest_Index+ (1|site.code), 
                         data=c)
 summary(wgt_pressure)
@@ -1355,33 +1400,45 @@ Anova(wgt_pressure)
 #nothing 
 
 ###firmness###
-frm_pest <- glmmTMB(Firmness ~ Aphids+applemaggots+codmoth+
-                      powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+frm_pest <- glmmTMB(Firmness ~ Aphids+Apple.Maggots+Codling.Moth+
+                      Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+  (1|site.code), 
                     data=c)
 summary(frm_pest)
 Anova(frm_pest)
-#Aphids       5.6389  1    0.01757 *
-#applemaggots 3.1469  1    0.07607 .
-#codmoth      3.3438  1    0.06746 .
+#Aphids         5.6389  1    0.01757 *
+#Apple.Maggots  3.1469  1    0.07607 .
+#Codling.Moth   3.3438  1    0.06746 .
 
 
-frm_aphid <- glmmTMB(Firmness ~ Aphids*Pest_Index+ (1|site.code), 
+frm_aphid <- glmmTMB(Firmness ~ orchard.type*Aphids+ (1|site.code), 
                      data=c)
 summary(frm_aphid)
 Anova(frm_aphid)
 #nothing 
 
-frm_amaggots <- glmmTMB(Firmness ~ applemaggots*Pest_Index+ (1|site.code), 
+ggplot(c, aes(x=Aphids, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+frm_amaggots <- glmmTMB(Firmness ~ orchard.type*Apple.Maggots+ (1|site.code), 
                         data=c)
 summary(frm_amaggots)
 Anova(frm_amaggots)
-#nothing 
+#orchard.type:Apple.Maggots 3.7021  1    0.05434 .
 
-frm_codmoth <- glmmTMB(Firmness ~ codmoth*Pest_Index+ (1|site.code), 
+ggplot(c, aes(x=Apple.Maggots, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+frm_codmoth <- glmmTMB(Firmness ~ orchard.type*Codling.Moth+ (1|site.code), 
                        data=c)
 summary(frm_codmoth)
 Anova(frm_codmoth)
-#nothing 
+#orchard.type:Codling.Moth 3.7347  1    0.05329 .
+
+ggplot(c, aes(x=Codling.Moth, y=Firmness, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
 
 #pest index 
 frm_pressure <- glmmTMB(Firmness ~ orchard.type*Pest_Index+ (1|site.code), 
@@ -1390,62 +1447,79 @@ summary(frm_pressure)
 Anova(frm_pressure)
 #nothing 
 
-
-ggplot(c, aes(x=Aphids, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-ggplot(c, aes(x=applemaggots, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-ggplot(c, aes(x=codmoth, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
 ###maturity###
-mat_pest <- glmmTMB(maturity.index ~ Aphids+applemaggots+codmoth+
-                      powmil+bitterrot+applescab+rootrot+fireblight+ (1|site.code), 
+mat_pest <- glmmTMB(maturity.index ~ Aphids+Apple.Maggots+Codling.Moth+
+                      Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
                     data=c)
 summary(mat_pest)
 Anova(mat_pest)
 #nothing 
 
+#pest pressure 
 mat_pressure <- glmmTMB(maturity.index ~ orchard.type*Pest_Index+ (1|site.code), 
                         data=c)
 summary(mat_pressure)
 Anova(mat_pressure)
 #Pest_Index              10.9447  1  0.0009387 ***
 
+
 ggplot(c, aes(x=Pest_Index, y=maturity.index, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 
-###pest pressure by mgmt system 
-pest_pressure <- glmmTMB(Pest_Index ~ orchard.type + (1|site.code), 
-                         data=c)
-summary(pest_pressure)
-Anova(pest_pressure)
-#nothing 
+
 #Q4-B: Fruit Chemistry ---------------------------------------------------------
 ##TotalPhen##
-pest.tp.c <- glmmTMB(TotalPhen ~ Aphids+Apple.Maggots+Codling.Moth+
+pest.tp.c <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Aphids+Apple.Maggots+Codling.Moth+
                        Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
-                     data=c)
+                     data=c, family=beta_family(link="logit"))
 summary(pest.tp.c)
 Anova(pest.tp.c)
-#Powdery.mildew 4.9524  1    0.02605 *
+#Powdery.mildew 3.5444  1    0.05975 .
+#Bitter.Rot     3.3081  1    0.06894 .
+#Root.Rot       3.3011  1    0.06924 .
 
+pest.tp.c.pm <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Powdery.mildew +(1|site.code), 
+                     data=c, family=beta_family(link="logit"))
+summary(pest.tp.c.pm)
+Anova(pest.tp.c.pm)
+#orchard.type                4.4668  1    0.03456 *
+
+pest.tp.c.br <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Bitter.Rot +(1|site.code), 
+                        data=c, family=beta_family(link="logit"))
+summary(pest.tp.c.br)
+Anova(pest.tp.c.br)
+#orchard.type            5.7991  1    0.01603 *
+
+
+pest.tp.c.rr <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Root.Rot +(1|site.code), 
+                        data=c, family=beta_family(link="logit"))
+summary(pest.tp.c.rr)
+Anova(pest.tp.c.rr)
+#orchard.type          4.5905  1    0.03215 *
+  
 
 #per tissue# 
 #Skin 
-pest.tp.sk <- glmmTMB(TotalPhen ~ Aphids+Apple.Maggots+Codling.Moth+
+pest.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
-                      data=SkinD)
+                      data=SkinD, family=beta_family(link="logit"))
 summary(pest.tp.sk)
 Anova(pest.tp.sk)
-#Bitter.Rot     3.0038  1    0.08307 .
-#Fire.Blight    4.2174  1    0.04001 *
+#Bitter.Rot     5.0539  1    0.02457 *
+
+
+pest.tp.sk.br <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Bitter.Rot+ (1|site.code), 
+                      data=SkinD, family=beta_family(link="logit"))
+summary(pest.tp.sk.br)
+Anova(pest.tp.sk.br)
+#orchard.type:Bitter.Rot 3.3643  1    0.06662 .
+
+ggplot(SkinD, aes(x=Bitter.Rot, y=TotalPhen, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_point()
+
+
 
 #Pulp
 pest.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Aphids+Apple.Maggots+Codling.Moth+
@@ -1459,15 +1533,22 @@ Anova(pest.tp.pu)
 #Root.Rot       2.8451  1    0.09165 .
 
 
+
 #Seed 
-pest.tp.se <- glmmTMB(TotalPhen ~ Aphids+Apple.Maggots+Codling.Moth+
+pest.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
-                      data=SkinD)
+                      data=SeedD, family=beta_family(link="logit"))
 summary(pest.tp.se)
 Anova(pest.tp.se)
-#Bitter.Rot     3.0038  1    0.08307 .
-#Fire.Blight    4.2174  1    0.04001 *
+#Root.Rot       7.8221  1   0.005161 **
 
+
+pest.tp.se.rr <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Root.Rot+ (1|site.code), 
+                      data=SeedD, family=beta_family(link="logit"))
+summary(pest.tp.se.rr)
+Anova(pest.tp.se.rr)
+#orchard.type          6.3695  1    0.01161 * 
+#Root.Rot              8.5848  1    0.00339 **
 
 ##PhenRich##
 #Whole Fruit 
@@ -1479,6 +1560,21 @@ Anova(pest.pr.c)
 #Apple.Maggots  4.8184  1    0.02816 *
 #Codling.Moth   4.3041  1    0.03802 *
 
+
+pest.pr.c.am <- glmmTMB(PhenRich ~ orchard.type*Apple.Maggots+ (1|site.code), 
+                     data=c)
+summary(pest.pr.c.am)
+Anova(pest.pr.c.am)
+#nothing 
+
+
+pest.pr.c.cm <- glmmTMB(PhenRich ~ orchard.type*Codling.Moth+ (1|site.code), 
+                        data=c)
+summary(pest.pr.c.cm)
+Anova(pest.pr.c.cm)
+#nothiing
+
+
 #per tissue# 
 #skin 
 pest.pr.sk <- glmmTMB(PhenRich ~ Aphids+Apple.Maggots+Codling.Moth+
@@ -1486,8 +1582,9 @@ pest.pr.sk <- glmmTMB(PhenRich ~ Aphids+Apple.Maggots+Codling.Moth+
                       data=SkinD)
 summary(pest.pr.sk)
 Anova(pest.pr.sk)
-#Powdery.mildew 2.9521  1    0.08577 .
 #Apple.Maggots  3.0997  1    0.07831 .
+#Powdery.mildew 2.9521  1    0.08577 .
+
 
 
 #pulp
@@ -1509,26 +1606,14 @@ Anova(pest.pr.se)
 #Aphids          2.8796  1  0.0897092 .  
 #Bitter.Rot      2.7320  1  0.0983590 .  
 #Root.Rot       12.4586  1  0.0004161 **
+
 #Q5: How does fruit quality compare to total phenolics and phenolic richness--------
 #PhenRich 
-tp.qual <- glmmTMB(TotalPhen~ SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                   , data=c)
+tp.qual <- glmmTMB((TotalPhen/1000000)+0.0001~ SSC+Firmness+avgwgt+maturity.index + (1|site.code)
+                   , data=c,family=beta_family(link="logit"))
 summary(tp.qual)
 Anova(tp.qual)
-#Firmness       2.7617  1    0.09654 .
-
-#Firmness 
-tp.firm <- glmmTMB(TotalPhen~ orchard.type*Firmness + 
-                     (1|site.code), data=c)
-summary(tp.firm)
-Anova(tp.firm)
-#Firmness              5.2726  1    0.02166 *
-
-
-ggplot(c, aes(x=Firmness, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher total phen in convential as firmness increases 
+#nothing 
 
 #PhenRich 
 pr.qual <- glmmTMB(PhenRich~ SSC+Firmness+avgwgt+maturity.index + (1|site.code)
