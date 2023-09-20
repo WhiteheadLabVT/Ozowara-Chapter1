@@ -559,6 +559,8 @@ for (i in 1:length(colnames(d.comp.se.sel))){
   plot(d.temp ~ d.expl.se$orchard.type, ylab=colnames(d.comp.se.sel)[i])
 }
 dev.off()
+#o:E
+#PB2, EPI, C 
 
 #Q1-D: Which compounds distinguish fruits based on latitude?----------
 #Analysis: NMDS and random forest
@@ -587,9 +589,11 @@ d.expl$Symbol <- as.numeric(as.character(d.expl$Symbol))
 d.expl$lat_cat = as.factor(d.expl$lat_cat)
 
 
-plot(m.NMDS_2, type="n") #plots the ordination axes only
-points(m.NMDS_2, pch=d.expl$Symbol,
-       col=as.character(d.expl$Color), cex = 0)
+       
+ plot(m.NMDS_2, type="n") #plots the ordination axes only
+       points(m.NMDS_2, pch=d.expl$Symbol,
+              col=as.character(d.expl$Color), cex = 0.8)     
+       
 
 
 
@@ -1004,7 +1008,160 @@ ggplot(c, aes(x=Acres, y=maturity.index, color=orchard.type))+
   geom_point()
 
 
-#Q3-B: Fruit Chemistry ---------------------------------------------------------
+#Q3-B: Fruit Chemistry----------------------------------------------------------
+#Total Phenolics
+#Skin 
+mgmt.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                     Weed_Mats + Cover_Crops + Acres + (1|site.code), 
+                   data=SkinD, family=beta_family(link="logit"))
+summary(mgmt.sk)
+Anova(mgmt.sk)
+#Herbicides   12.0814  1  0.0005093 ***
+#Com_Mul       3.2572  1  0.0711121 .  
+
+
+#orchard type actually comes out significant here
+emmeans(mgmt.sk, ~ orchard.type, type="response")
+
+#SRW: I am getting some warnings with these models, not sure the source, probably
+#it is just a lot of variables and some model simplification (as described
+#above) will help to make sure the ones that are coming out significant really are
+diagnose(mgmt.sk)  #this warning is very common
+
+
+#Pulp 
+mgmt.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                     Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                   data=PulpD, family=beta_family(link="logit"))
+summary(mgmt.pu)
+Anova(mgmt.pu)
+#Cover_Crops 3.0087  1    0.08282 .
+#Cultivation 4.4598  1    0.03470 *
+
+#SRW: orchard type also comes out here but in the opposite direction?? 
+emmeans(mgmt.pu, ~ orchard.type, type="response")
+
+
+#Seed
+mgmt.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                     Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                   data=SeedD, family=beta_family(link="logit"))
+summary(mgmt.se)
+Anova(mgmt.se)
+#Nothing 
+
+emmeans(mgmt.se, ~ orchard.type, type="response")
+
+
+
+#Phenolics Richness 
+
+#Skin 
+mgmt.pr.sk <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                      data=SkinD)
+summary(mgmt.pr.sk)
+Anova(mgmt.pr.sk)
+#Herbicides  3.8902  1   0.048569 * 
+
+#richness higher in organic
+emmeans(mgmt.pr.sk, ~ orchard.type, type="response")
+
+
+
+mgmt.pr.sk.h <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+                        data=SkinD)
+summary(mgmt.pr.sk.h)
+Anova(mgmt.pr.sk.h)
+#Herbicides              4.7020  1    0.03013 *
+
+
+#Pulp 
+
+mgmt.pr.pu <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                      data=PulpD)
+summary(mgmt.pr.pu)
+Anova(mgmt.pr.pu)
+#Cultivation  11.8454  1  0.0005781 ***
+#Com_Mul       5.7323  1  0.0166559 * 
+
+mgmt.pr.pu.c <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
+                        data=PulpD)
+summary(mgmt.pr.pu.c)
+Anova(mgmt.pr.pu.c)
+#Cultivation              3.2555  1    0.07119 .
+
+mgmt.pr.pu.cm <- glmmTMB(PhenRich ~ orchard.type*Com_Mul+ (1|site.code), 
+                         data=PulpD)
+summary(mgmt.pr.pu.cm)
+Anova(mgmt.pr.pu.cm)
+#orchard.type:Com_Mul 2.8062  1     0.0939 .
+
+#Visualize this 
+ggplot(c, aes(x=Com_Mul, y=PhenRich, color=orchard.type))+
+  geom_smooth(method = "lm") +
+  geom_boxplot()
+
+#Seed
+mgmt.pr.se <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
+                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                      data=SeedD)
+summary(mgmt.pr.se)
+Anova(mgmt.pr.se)
+#Cultivation  8.4221  1   0.003707 ** 
+#Herbicides   4.7221  1   0.029778 *  
+#Mowing       3.9252  1   0.047567 *  
+#Weed_Mats    6.7875  1   0.009180 ** 
+#Cover_Crops  6.7150  1   0.009560 ** 
+#Acres        9.0503  1   0.002626 ** 
+
+#richness lower in organic
+emmeans(mgmt.pr.se, ~ orchard.type, type="response")
+
+
+#Cultivation 
+mgmt.pr.se.cu <- glmmTMB(PhenRich ~ orchard.type*Cultivation+ (1|site.code), 
+                         data=SeedD)
+summary(mgmt.pr.se.cu)
+Anova(mgmt.pr.se.cu)
+#orchard.type:Cultivation 2.9180  1    0.08760 .
+
+
+#Herbicides 
+mgmt.pr.se.he <- glmmTMB(PhenRich ~ orchard.type*Herbicides+ (1|site.code), 
+                         data=SeedD)
+summary(mgmt.pr.se.he)
+Anova(mgmt.pr.se.he)
+#nothing 
+
+#Mowing 
+mgmt.pr.se.m <- glmmTMB(PhenRich ~ orchard.type*Mowing+ (1|site.code), 
+                        data=SeedD)
+summary(mgmt.pr.se.m)
+Anova(mgmt.pr.se.m)
+#doesnt work 
+
+#Weed_Mats 
+mgmt.pr.se.w <- glmmTMB(PhenRich ~ orchard.type*Weed_Mats+ (1|site.code), 
+                        data=SeedD)
+summary(mgmt.pr.se.w)
+Anova(mgmt.pr.se.w)
+#doesnt work 
+
+#Cover_Crops 
+mgmt.pr.se.cc <- glmmTMB(PhenRich ~ orchard.type*Cover_Crops+ (1|site.code), 
+                         data=SeedD)
+summary(mgmt.pr.se.cc)
+Anova(mgmt.pr.se.cc)
+#nothing 
+
+#Acres 
+mgmt.pr.se.a <- glmmTMB(PhenRich ~ orchard.type*Acres+ (1|site.code), 
+                        data=SeedD)
+summary(mgmt.pr.se.a)
+Anova(mgmt.pr.se.a)
+#nothing 
 
 #Q4: Which pest or diseases presence has the most significant affect on fruit quality-----
 #visualize pest data in indices 
