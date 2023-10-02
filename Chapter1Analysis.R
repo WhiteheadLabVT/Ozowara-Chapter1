@@ -217,14 +217,22 @@ ggplot(c, aes(x=Latitude, y=maturity.index, color=orchard.type))+
 #Figure: Average Weight x Latitude 
 plot1 = ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   geom_point() +
-  ylab ("Average Weight (g)") +
-  xlab ("Latitude")+
   geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    
+  )
 plot1
+ggsave('grouped_boxplot.png', plot1, bg='transparent')
+
+
+
 #organic weight decreases as latitude increases 
 #conventional weight increases as latitude increases 
-
 
 
 ###Investigating Latitude and Average weight 
@@ -408,6 +416,7 @@ ggplot(Seed_low, aes(x=Latitude, y=PhenRich, color=orchard.type))+
 ###NMDS###
 m.NMDS <- metaMDS(d.comp, distance = "bray", trymax=100, autotransform =FALSE)
 m.NMDS
+
 plot(m.NMDS, type="t")
 
 #Data:     wisconsin(sqrt(d.comp)) 
@@ -1222,12 +1231,6 @@ corrplot(cor(p_pest), p.mat = testRes$p, method = 'color', diag = FALSE, type = 
 #Q4-A: Physical Quality---------------------------------------------------------
 #Examining Relationships of Pest.Index, orchard.type, and latitude 
 #pest index 
-pest.index <- glmmTMB(Pest.Index ~ orchard.type*Latitude+ (1|site.code), 
-                     data=c)
-summary(pest.index)
-Anova(pest.index)
-#nothing 
-
 #ssc
 ssc.index <- glmmTMB(SSC ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
                         data=c)
@@ -1235,10 +1238,15 @@ summary(ssc.index)
 Anova(ssc.index)
 #orchard.type:Pest.Index:Latitude  25.1693  1  5.251e-07 ***
 
-
-ggplot(c, aes(x=Pest.Index, y=SSC, color=orchard.type))+
+###plot this ###2 y axis plot that looks cool 
+ggplot(c, aes(x=SSC, y=Latitude, color=orchard.type)) + 
   geom_smooth(method = "lm") +
-  geom_point()
+  geom_point() + 
+  scale_y_continuous(
+    "Latitude", 
+    sec.axis = sec_axis(~ . * .10, name = "Pest.Index")
+  )+
+  theme_classic()
 
 #firmness 
 firm.index <- glmmTMB(Firmness ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
@@ -1418,72 +1426,58 @@ pest.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Mag
                       data=SeedD, family=beta_family(link="logit"))
 summary(pest.tp.se)
 Anova(pest.tp.se)
-#orchard.type   6.9068  1   0.008587 **
-#Root.Rot       9.2816  1   0.002315 **
-
-ggplot(SeedD, aes(x=Root.Rot, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decreases, higher in conventional 
-
+#orchard.type   13.5904  1  0.0002273 ***
+  
 
 ##PhenRich##
 #skin 
 pest.pr.sk <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+ (1|site.code), 
+                        Powdery.mildew+Fire.Blight+ (1|site.code), 
                       data=SkinD)
 summary(pest.pr.sk)
 Anova(pest.pr.sk)
-#Apple.Maggots  3.9307  1    0.04741 *
-#Codling.Moth   5.2264  1    0.02225 *
-#Powdery.mildew 3.2477  1    0.07152 .
-#Bitter.Rot     3.3729  1    0.06628 .
+#Powdery.mildew 14.2281  1  0.0001619 ***
 
-ggplot(SkinD, aes(x=Apple.Maggots, y=PhenRich, color=orchard.type))+
+ggplot(SkinD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
-#increase o, decrease c 
-
-ggplot(SkinD, aes(x=Codling.Moth, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increase o, decrease c 
+#increase as powmil increases 
 
 #pulp
 pest.pr.pu <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+(1|site.code), 
+                        Powdery.mildew+Fire.Blight+(1|site.code), 
                       data=PulpD)
 summary(pest.pr.pu)
 Anova(pest.pr.pu)
-#Aphids          9.8163  1  0.0017297 ** 
-#Apple.Maggots  13.6250  1  0.0002232 ***
-#Powdery.mildew 11.0199  1  0.0009014 ***
+#Aphids          7.0735  1   0.007823 ** 
+#Apple.Maggots   8.1773  1   0.004242 ** 
+#Powdery.mildew 19.5452  1  9.825e-06 ***
 
 ggplot(PulpD, aes(x=Apple.Maggots, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
-#decrease, higher in c, sharoer in o 
+#increase in conventional, decrease in organic 
 
 ggplot(PulpD, aes(x=Aphids, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
-#o starts low ends higher than c 
+#o starts low eend shigh, conventional starts high and ends low 
 
 ggplot(PulpD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
-#sharp increase in o, starts low ends high 
+#sharp increase in o, starts low ends high, both increae 
 
 
 #Seed
 pest.pr.se <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Bitter.Rot+Apple.scab+Root.Rot+Fire.Blight+(1|site.code), 
+                        Powdery.mildew+Fire.Blight+(1|site.code), 
                       data=SeedD)
 summary(pest.pr.se)
 Anova(pest.pr.se)
-#Aphids          3.2302  1  0.0722926 .  
-#Bitter.Rot      2.9140  1  0.0878156 .  
-#Root.Rot       12.9458  1  0.0003206 ***
+#orchard.type   13.7879  1  0.0002046 ***
+#Aphids          4.4591  1  0.0347154 *  
+#Codling.Moth   19.2622  1  1.139e-05 ***
 
 
 ggplot(SeedD, aes(x=Aphids, y=PhenRich, color=orchard.type))+
@@ -1491,15 +1485,11 @@ ggplot(SeedD, aes(x=Aphids, y=PhenRich, color=orchard.type))+
   geom_point()
 #c starts high ends low, o reverse 
 
-ggplot(SeedD, aes(x=Bitter.Rot, y=PhenRich, color=orchard.type))+
+ggplot(SeedD, aes(x=Codling.Moth, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 #decrease c,increase o
 
-ggplot(SeedD, aes(x=Root.Rot, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decreases, higher in c 
 
 #Q5: How does fruit quality compare to total phenolics and phenolic richness--------
 #skin 
@@ -1546,6 +1536,17 @@ ggplot(PulpD, aes(x=maturity.index, y=PhenRich, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 #maturity increase as phen rich decreases 
+
+
+#pulp avgwgt (figure is not correct)
+ggplot(PulpD, aes(x=avgwgt, y=Latitude, color=orchard.type)) + 
+  geom_smooth(method = "lm") +
+  geom_point() + 
+  scale_y_continuous(
+    "Latitude", 
+    sec.axis = sec_axis(~ . * .25, name = "Phenolic Richness")
+  )+
+  theme_classic()
 
 #seed
 se.tp.qual <- glmmTMB((TotalPhen/1000000)+0.0001~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
@@ -1619,4 +1620,4 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   }
 }
 
-#Figures------------------------------------------------------------------------
+
