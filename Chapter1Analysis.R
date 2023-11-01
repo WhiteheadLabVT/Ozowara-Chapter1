@@ -1,4 +1,5 @@
 #Chapter 1 Analysis 
+setwd("C:\\Users\\xozow\\OneDrive\\Documents\\Dissertation_Data\\Ozowara-Chapter1")
 rm(list=ls()) # clears work space
 #Install packages---------------------------------------------------------------
 library(ggplot2)
@@ -281,7 +282,7 @@ multiplot(avglow, avghigh, cols=2)
 
 #Q1-B: Fruit Chemistry-------------------------------------------------------------
 #binding latitude to the 359 obs data set 
-ChemLat <- left_join(d, Orchard[,c(2,4)], by="orchard.num")
+ChemLat <- left_join(d, Orchard[,c(2,4,40)], by="orchard.num")
 
 #Total Phenolics with beta distribution 
 tp1 <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Tissue*Latitude + 
@@ -292,22 +293,14 @@ Anova(tp1)
 #Tissue                       278.1257  2    < 2e-16 ***
 #orchard.type:Tissue            8.3481  2    0.01539 *  
 
-#visualize this 
-ggplot(ChemLat, aes(x=Tissue, y=TotalPhen/1000, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#seeds and skin have higher values 
-#seeds highest 
-
-ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#over latitude we see skin and seeds increase 
-#pulp appears to decrease 
-
-ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue, shape= orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point(size=1)
+ggplot(ChemLat, aes(x=Tissue, y=TotalPhen/1000, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Total Phenolics ug/g") +
+  xlab ("Tissue")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 #strong effects of tissue and interaction between tissue and orchard type
 #splitting by tissue
@@ -351,15 +344,14 @@ Anova(pr1)
 
 #Visualize this 
 #latitude by tissue
-ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#highest richness in skin 
+ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Phenolic Richness") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm ,alpha = .15,aes(fill = Tissue))+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F", "green"),name="Tissue")
 
-#otype
-ggplot(ChemLat, aes(x=Tissue, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
 
 
 #per tissue type 
@@ -762,9 +754,10 @@ results$rotation
 head(results$x)
 
 #this plots the results of the PCAs into a two dimensional representation 
-biplot(results,
+biplot(results,choices=1:2, cex = 0.75,
        col = c('darkblue', 'BLACK'),
        scale = FALSE, xlabs = rep("*", 24))
+
 
 
 #calculate total variance explained by each principal component
@@ -962,7 +955,7 @@ ggplot(c, aes(x=Herbicides, y=SSC, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_boxplot()
 
-##higher ssc in orgnanic orchards without herbicides 
+##higher ssc in organic orchards without herbicides 
 ##higher ssc in conventional orchards with herbicides 
 
 
@@ -1232,47 +1225,35 @@ corrplot(cor(p_pest), p.mat = testRes$p, method = 'color', diag = FALSE, type = 
 #Examining Relationships of Pest.Index, orchard.type, and latitude 
 #pest index 
 #ssc
-ssc.index <- glmmTMB(SSC ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
+ssc.index <- glmmTMB(SSC ~ orchard.type*Pest.Index+ (1|site.code), 
                         data=c)
 summary(ssc.index)
 Anova(ssc.index)
-#orchard.type:Pest.Index:Latitude  25.1693  1  5.251e-07 ***
-
-###plot this ###2 y axis plot that looks cool 
-ggplot(c, aes(x=SSC, y=Latitude, color=orchard.type)) + 
-  geom_smooth(method = "lm") +
-  geom_point() + 
-  scale_y_continuous(
-    "Latitude", 
-    sec.axis = sec_axis(~ . * .10, name = "Pest.Index")
-  )+
-  theme_classic()
 
 #firmness 
-firm.index <- glmmTMB(Firmness ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
+firm.index <- glmmTMB(Firmness ~ orchard.type*Pest.Index+ (1|site.code), 
                      data=c)
 summary(firm.index)
 Anova(firm.index)
 #nothing 
 
 #avg wgt 
-wgt.index <- glmmTMB(avgwgt ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
+wgt.index <- glmmTMB(avgwgt ~ orchard.type*Pest.Index+ (1|site.code), 
                       data=c)
 summary(wgt.index)
 Anova(wgt.index)
-#orchard.type:Pest.Index:Latitude  6.5503  1  0.0104865 *  
 
 ggplot(c, aes(x=Pest.Index, y=avgwgt, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
 
 #maturity  
-mat.index <- glmmTMB(maturity.index ~ orchard.type*Pest.Index*Latitude+ (1|site.code), 
+mat.index <- glmmTMB(maturity.index ~ orchard.type*Pest.Index+ (1|site.code), 
                      data=c)
 summary(mat.index)
 Anova(mat.index)
-#orchard.type:Pest.Index:Latitude  9.5316  1   0.002020 ** 
-  
+#Pest.Index              11.4270  1  0.0007238 ***
+
 ggplot(c, aes(x=Pest.Index, y=maturity.index, color=orchard.type))+
   geom_smooth(method = "lm") +
   geom_point()
@@ -1369,6 +1350,12 @@ ggplot(c, aes(x=Powdery.mildew, y=maturity.index, color=orchard.type))+
 #Q4-B: Fruit Chemistry ---------------------------------------------------------
 #Total Phenolics
 #Skin 
+pest.index.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
+                      data=SkinD, family=beta_family(link="logit"))
+summary(pest.index.tp.sk)
+Anova(pest.index.tp.sk)
+#nothing 
+
 pest.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+ (1|site.code), 
                       data=SkinD, family=beta_family(link="logit"))
@@ -1389,6 +1376,12 @@ ggplot(SkinD, aes(x=Fire.Blight, y=TotalPhen, color=orchard.type))+
 
 
 #Pulp
+pest.index.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
+                            data=PulpD, family=beta_family(link="logit"))
+summary(pest.index.tp.pu)
+Anova(pest.index.tp.pu)
+#nothing 
+
 pest.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+ (1|site.code), 
                       data=PulpD, family=beta_family(link="logit"))
@@ -1421,6 +1414,12 @@ ggplot(PulpD, aes(x=Fire.Blight, y=TotalPhen, color=orchard.type))+
 #increases, higher in conventional 
 
 #Seed 
+pest.index.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
+                            data=SeedD, family=beta_family(link="logit"))
+summary(pest.index.tp.se)
+Anova(pest.index.tp.se)
+
+
 pest.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+ (1|site.code), 
                       data=SeedD, family=beta_family(link="logit"))
@@ -1431,6 +1430,12 @@ Anova(pest.tp.se)
 
 ##PhenRich##
 #skin 
+pest.index.pr.sk <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
+                            data=SkinD)
+summary(pest.index.pr.sk)
+Anova(pest.index.pr.sk)
+
+
 pest.pr.sk <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+ (1|site.code), 
                       data=SkinD)
@@ -1444,6 +1449,12 @@ ggplot(SkinD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
 #increase as powmil increases 
 
 #pulp
+pest.index.pr.pu <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
+                            data=PulpD)
+summary(pest.index.pr.pu)
+Anova(pest.index.pr.pu)
+
+
 pest.pr.pu <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+(1|site.code), 
                       data=PulpD)
@@ -1470,6 +1481,12 @@ ggplot(PulpD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
 
 
 #Seed
+pest.index.pr.se <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
+                            data=SeedD)
+summary(pest.index.pr.se)
+Anova(pest.index.pr.se)
+
+
 pest.pr.se <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
                         Powdery.mildew+Fire.Blight+(1|site.code), 
                       data=SeedD)
@@ -1619,5 +1636,139 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
+
+
+#Aggregated Data----------------------------------------------------------------
+#Physical
+a1= aggregate(SSC~orchard.type, data=c, FUN=mean)
+#Conventional 10.88182
+#Organic 11.78462
+
+aggregate(Firmness~orchard.type, data=c, FUN=mean)
+#Conventional 22.26473
+#Organic 22.44308
+
+aggregate(avgwgt~orchard.type, data=TreeLat, FUN=mean)
+#Conventional 100.29091
+#Organic 98.67692
+
+aggregate(maturity.index~orchard.type, data=c, FUN=mean)
+#Conventional 3.781818
+#Organic 4.138462
+
+#Chemical 
+aggregate(TotalPhen~Tissue, data=d, FUN=mean)
+#  Tissue TotalPhen
+#1   PULP  7330.078
+#2   SEED 67524.994
+#3   SKIN 69199.606
+
+
+aggregate(PhenRich~Tissue, data=d, FUN=mean)
+#  Tissue  PhenRich
+#1   PULP  9.341667
+#2   SEED 12.462185
+#3   SKIN 23.208333
+
+
+ag.pr <- aggregate(PhenRich~Tissue+orchard.type, data=d, FUN=mean)
+#  Tissue orchard.type  PhenRich
+#1   PULP Conventional  9.509091
+#2   SEED Conventional 13.222222
+#3   SKIN Conventional 23.200000
+#4   PULP      Organic  9.200000
+#5   SEED      Organic 11.830769
+#6   SKIN      Organic 23.215385
+
+plot(ag.pr)
+
+aggregate(data=d.comp, FUN=mean)
+
+aggregate(TotalPhen/1000~Tissue+orchard.type, data=d, FUN=mean)
+# Tissue orchard.type TotalPhen/1000
+#1   PULP Conventional       8.398422
+#2   SEED Conventional      82.895088
+#3   SKIN Conventional      69.150425
+#4   PULP      Organic       6.426095
+#5   SEED      Organic      54.755993
+#6   SKIN      Organic      69.241221
+
+
+
+ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Soluble Sugar Content (%)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"))
+
+ag2= ggplot(TreeLat, aes(x=orchard.type, y=Firmness, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness (N)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"))
+
+ag3= ggplot(TreeLat, aes(x=orchard.type, y=avgwgt, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Weight (g)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+ag4= ggplot(TreeLat, aes(x=orchard.type, y=maturity.index, color="#3EBCD2", "#9A607F")) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Cornell Starch-Iodine Value") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() 
+
+multiplot(ag1,ag2,ag3,ag3, cols=2)
+  
+
+
+
+
+
+###r maps 
+install.packages("tmap")
+install.packages("sf")
+
+library(tmap)
+library(sf)
+
+#Prepare a data frame with your latitude and longitude coordinates.
+#For this example, I'll create a simple data frame with two points:
+# Sample data frame with latitude and longitude
+
+map <- data.frame(
+  Name = c(c$orchard.num),
+  Latitude = c(c$Latitude),
+  Longitude = c(c$Longitude))
+
+#Convert the data frame to a sf object:
+sf_data <- st_as_sf(map, coords = c("Longitude", "Latitude"))
+
+#Create a geographic map using tm_basemap and tm_shape from the tmap package:
+# Create a simple map with OpenStreetMap data
+map1 <- tm_shape(sf_data) +
+  tm_bubbles() +
+  tm_layout(title = "Map with Latitude and Longitude")
+tmap_mode("plot")
+
+plot(map1)
+
+
+
+# Replace 'YOUR_GOOGLE_API_KEY' with your actual Google Maps API key
+map <- get_googlemap(center = c(lon = -120, lat = 36), zoom = 6, scale = 2, maptype = "terrain", key = "YOUR_GOOGLE_API_KEY")
+
 
 
