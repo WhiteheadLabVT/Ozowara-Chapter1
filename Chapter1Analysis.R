@@ -15,17 +15,13 @@ library(tidyverse)
 library(pls) #PCAs
 library(Hmisc)#correlation matrix calculation 
 library(corrplot)#plotting correlation matrix 
-library("purrr")
-library(Hmisc) #correlation matrix
 library(readr)
 library(GGally)
-library(emmeans)
+library(emmeans) 
 #Read Data Organization and Restructuring---------------------------------------
-#Read in Data sheets#
-
+#Read in Data sheets
 #Orchard Level Data (24 obs)
 Orchard <- read_csv("Orchard Level Data.csv")
-View(Orchard)
 Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
 
 #Tree Level Data (120 obs)
@@ -151,8 +147,6 @@ shapiro.test(SeedD$PhenRich)#normal!
 #Analysis: Using GLMMs with tree level data to explore how measured qualities interact
 #across latitude 
 #Q1-A: Physical Quality------------------------------------------------------------
-###Physical Quality###
-
 #binding latitude to the 120 obs data set#
 TreeLat <- left_join(Tree, Orchard[,c(2,4)], by="orchard.num")
 #SSC
@@ -163,12 +157,12 @@ Anova(Lat1)
 #Latitude              18.2814  1  1.906e-05 ***
 #orchard.type:Latitude  0.2196  1     0.6393  
 
-hist(resid(Lat1))  #looks great
-diagnose(Lat1)
+## Calculate the effect size
+ems <- emmeans(Lat1, c("Latitude","orchard.type"), infer = c(T, T))
+eff_size(ems, sigma = sigma(Lat1), edf = df.residual(Lat1))
+plot(ems)
+#high level of uncertainty 
 
-ggplot(c, aes(x=Latitude, y=SSC, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
 
 #Firmness 
 Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
@@ -178,26 +172,21 @@ Anova(Lat2)
 #Latitude              34.5700  1  4.112e-09 ***
 #orchard.type:Latitude  0.9233  1     0.3366 
 
-hist(resid(Lat2))  #looks great
-diagnose(Lat2)
 
-ggplot(c, aes(x=Latitude, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
+## Calculate the effect size
+ems <- emmeans(Lat2, c("Latitude","orchard.type"), infer = c(T, T))
+eff_size(ems, sigma = sigma(Lat2), edf = df.residual(Lat2))
+plot(ems)
 
 #Average Weight 
 Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat3)
 #orchard.typeOrganic           142.408     45.320   3.142  0.00168 **
-
 Anova(Lat3) 
 #orchard.type          0.1535  1   0.695206   
 #Latitude              0.3713  1   0.542288   
 #orchard.type:Latitude 9.7210  1   0.001822 **
 
-hist(resid(Lat3))  #looks great
-diagnose(Lat3)
-##strongest interaction 
 
 #Maturity Index 
 Lat4<- glmmTMB(maturity.index ~ orchard.type*Latitude + (1|site.code/orchard.num), 
@@ -207,33 +196,6 @@ Anova(Lat4)
 #orchard.type          0.0047  1    0.94544  
 #Latitude              3.8790  1    0.04889 *
 #orchard.type:Latitude 0.9598  1    0.32724 
-
-hist(resid(Lat4)) 
-diagnose(Lat4)
-
-ggplot(c, aes(x=Latitude, y=maturity.index, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-#Figure: Average Weight x Latitude 
-plot1 = ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
-  geom_point() +
-  geom_smooth(method=glm, se=FALSE)+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  theme(
-    panel.background = element_rect(fill='transparent'), #transparent panel bg
-    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
-    panel.grid.major = element_blank(), #remove major gridlines
-    panel.grid.minor = element_blank(), #remove minor gridlines
-    
-  )
-plot1
-ggsave('grouped_boxplot.png', plot1, bg='transparent')
-
-
-
-#organic weight decreases as latitude increases 
-#conventional weight increases as latitude increases 
 
 
 ###Investigating Latitude and Average weight 
@@ -245,39 +207,12 @@ Tree_high <- filter(TreeLat, Latitude>42)
 avg_low<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_low)
 summary(avg_low)
 Anova(avg_low) 
+#orchard.type 2.5824  1     0.1081
 
 avg_hgh<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_high)
 summary(avg_hgh)
 Anova(avg_hgh)
 #orchard.type 3.6794  1    0.05509 .
-
-
-#Figure: Avg weight boxplots at high and low latitudes 
-avglow <- ggplot(Tree_low, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  xlab ("Latitude < 42 ") +
-  ylab ("Average Weight") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-avglow
-
-avghigh <- ggplot(Tree_high, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
-  theme_classic() +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  xlab ("Latitude > 42 ") +
-  ylab ("Average Weight") +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
-avghigh
-
-multiplot(avglow, avghigh, cols=2)
-
-
-
-
 
 
 #Q1-B: Fruit Chemistry-------------------------------------------------------------
@@ -292,15 +227,6 @@ Anova(tp1)
 #orchard.type                   4.4968  1    0.03396 *  
 #Tissue                       278.1257  2    < 2e-16 ***
 #orchard.type:Tissue            8.3481  2    0.01539 *  
-
-ggplot(ChemLat, aes(x=Tissue, y=TotalPhen/1000, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Total Phenolics ug/g") +
-  xlab ("Tissue")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 #strong effects of tissue and interaction between tissue and orchard type
 #splitting by tissue
@@ -342,18 +268,6 @@ Anova(pr1)
 #Latitude:Tissue                7.6070  2    0.02229 *  
 #Tissue                       798.6850  2    < 2e-16 ***
 
-#Visualize this 
-#latitude by tissue
-ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Phenolic Richness") +
-  xlab ("Latitude")+
-  geom_smooth(method=lm ,alpha = .15,aes(fill = Tissue))+
-  theme_bw()+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F", "green"),name="Tissue")
-
-
-
 #per tissue type 
 pr.p <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=d.pu,
                 family=poisson(link="log"))
@@ -373,122 +287,128 @@ summary(pr.se)
 Anova(pr.se)
 #Latitude              6.0320  1    0.01405 *
 
-#visualize this 
-ggplot(d.se, aes(x=Latitude, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#organic less rich at lower latitudes
-
-###Investigating Latitude Interactions  
-#Splitting latitude in high and low 
-Seed_low <- filter(d.se, Latitude<42)
-Seed_high <- filter(d.se, Latitude>42)
-
-#Low
-sd_low<- glmmTMB(PhenRich ~ orchard.type + (1|site.code), data=Seed_low)
-summary(sd_low)
-Anova(sd_low) 
-#orchard.type 3.6992  1    0.05444 .
-
-sd_hgh<- glmmTMB(PhenRich ~ orchard.type + (1|site.code), data=Seed_high)
-summary(sd_hgh)
-Anova(sd_hgh)
-#orchard.type 0.0737  1      0.786
-
-#low lats make up for higher richness 
-
-ggplot(Seed_low, aes(x=Latitude, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher richness in conventional seeds at lower latitudes 
-
 
 #Q1-C: Which compounds distinguish fruits based on management systems?----------
 #Analysis: NMDS and random forest
-###NMDS###
-m.NMDS <- metaMDS(d.comp, distance = "bray", trymax=100, autotransform =FALSE)
-m.NMDS
+#Q1-C: NMDS + PERMANOVA---------------------------------------------------------
+#left joining the "expl" by latitude  
+d.expl <- left_join(d.expl, Orchard[,c(2,40)], by="orchard.num")
+d.expl.sk <- left_join(d.expl.sk, Orchard[,c(2,40)], by="orchard.num")
+d.expl.pu <- left_join(d.expl.pu, Orchard[,c(2,40)], by="orchard.num")
+d.expl.se <- left_join(d.expl.se, Orchard[,c(2,40)], by="orchard.num")
 
-plot(m.NMDS, type="t")
-
-#Data:     wisconsin(sqrt(d.comp)) 
-#Distance: bray 
-
+###NMDS for Skin 
+m.NMDS.sk <- metaMDS(d.comp.sk, distance = "bray", trymax=100, autotransform =FALSE)
+m.NMDS.sk
 #Dimensions: 2 
-#Stress:     0.135198  
+#Stress:     0.06984612 
 #Stress type 1, weak ties
-#Best solution was not repeated after 100 tries
+
+m.NMDS.sk <- metaMDS(d.comp.sk, distance = "jaccard", trymax=100, autotransform =FALSE)
+m.NMDS.sk
+#Dimensions: 2 
+#Stress:     0.07062257 
+#Stress type 1, weak ties
+
+plot(m.NMDS.sk, type="t")
+
 
 #for plotting, need to add columns that give values for 
 #colors and symbols we want in plot
-d.expl$Color <- recode_factor(d.expl$orchard.type,
-                              Organic="red", Conventional="blue")
-d.expl$Symbol <- recode_factor(d.expl$Tissue,
-                               SKIN=8, PULP=1, SEED=2)
-d.expl$Symbol <- as.numeric(as.character(d.expl$Symbol))
+d.expl.sk$Color <- recode_factor(d.expl.sk$lat_cat,
+                                 low="red", high="blue")
+d.expl.sk$Symbol <- recode_factor(d.expl.sk$orchard.type,
+                                  Organic=2, Conventional=1)
+d.expl.sk$Symbol <- as.numeric(as.character(d.expl.sk$Symbol))
 
-d.expl$orchard.type = as.factor(d.expl$orchard.type)
+d.expl.sk$lat_cat = as.factor(d.expl.sk$lat_cat)
 
 
-plot(m.NMDS, type="n") #plots the ordination axes only
-points(m.NMDS, pch=d.expl$Symbol,
-       col=as.character(d.expl$Color), cex = 0.8)     
-
+plot(m.NMDS.sk, type="n") #plots the ordination axes only
+points(m.NMDS.sk, pch=d.expl.sk$Symbol,
+       col=as.character(d.expl.sk$Color), cex = 0.8)     
+ordiellipse(m.NMDS.sk, d.expl.sk$Symbol, conf = 0.95)
 
 #PERMANOVA can test whether the visualized differences are significant
-m.perm <- adonis2(d.comp~orchard.type*Tissue, data=d.expl)
-m.perm
-#orchard.type          1    0.450 0.00386   2.5040  0.024 *  
-#Tissue                2   51.790 0.44450 144.1093  0.001 ***
-#orchard.type:Tissue   2    0.843 0.00724   2.3465  0.008 ** 
-#Residual            353   63.431 0.54440                    
-#Total               358  116.515 1.00000  
+m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat, data=d.expl.sk)
+m.perm1
+#                      Df SumOfSqs      R2      F Pr(>F)
+#orchard.type           1   0.0331 0.00322 0.3847  0.855
+#lat_cat                1   0.1297 0.01260 1.5065  0.164
+#orchard.type:lat_cat   1   0.1432 0.01391 1.6624  0.134
+#Residual             116   9.9901 0.97028              
+#Total                119  10.2962 1.00000              
 
 
+###NMDS for Pulp 
+m.NMDS.pu <- metaMDS(d.comp.pu, distance = "bray", trymax=100, autotransform =FALSE)
+m.NMDS.pu
 
-###Random Forest###
-###skin
-m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$orchard.type, importance=TRUE, 
-                         proximity=TRUE, oob.prox=TRUE, ntree=2000)
-m1.rf.sk$importance
-varImpPlot(m1.rf.sk)
-MDSplot(m1.rf.sk, d.expl.sk$orchard.type)
+plot(m.NMDS.pu, type="t")
 
-#using boruta 
-m1.rf.b.sk <- Boruta(d.comp.sk,d.expl.sk$orchard.type)
-m1.rf.b.sk
-# 9 attributes confirmed important: A, cyanidin_Galactoside, ePicatechin, F, G and 4 more;
+#for plotting, need to add columns that give values for 
+#colors and symbols we want in plot
+d.expl.pu$Color <- recode_factor(d.expl.pu$lat_cat,
+                                 low="red", high="blue")
+d.expl.pu$Symbol <- recode_factor(d.expl.pu$orchard.type,
+                                  Organic=2, Conventional=1)
+d.expl.pu$Symbol <- as.numeric(as.character(d.expl.pu$Symbol))
 
-#plot 
-plot(m1.rf.b.sk)  
-getSelectedAttributes(m1.rf.b.sk) #lists all important ones
+d.expl.pu$lat_cat = as.factor(d.expl.pu$lat_cat)
 
-#[1] "A"                    "F"                    "G"                    "PB1"                 
-#[5] "cyanidin_Galactoside" "ePicatechin"          "U1"                   "I"                   
-#[9] "K" 
 
-#performing MANOVA 
-d.comp.sk.sel <- data.matrix(d.comp.sk[,getSelectedAttributes(m1.rf.b.sk)])
-m1.man.sk <- manova(d.comp.sk.sel ~ d.expl.sk$orchard.type)
-summary(m1.man.sk) 
-#d.expl.sk$orchard.type   1 0.23711   3.7986      9    110 0.0003348 ***
-  
-#follow-up ANOVAs for each individual compound
-summary.aov(m1.man.sk)  
-#A= 0.09424 .
-#PB1 =0.05021 .
-#gala = 0.08316 .
+NMDSpu=plot(m.NMDS.pu, type="n") #plots the ordination axes only
+points(m.NMDS.pu, pch=d.expl.pu$Symbol,
+       col=as.character(d.expl.pu$Color), cex = 0.8)     
+ordiellipse(m.NMDS.pu, d.expl.pu$Symbol, conf = 0.95)
+NMDSpu
 
-#some quick plots of all of them
-par(mfrow=c(3,3))
-for (i in 1:length(colnames(d.comp.sk.sel))){
-  d.temp=d.comp.sk.sel[,i]
-  plot(d.temp ~ d.expl.sk$orchard.type, ylab=colnames(d.comp.sk.sel)[i])
-}
-dev.off()
+#PERMANOVA
+m.perm2 <- adonis2(d.comp.pu~orchard.type*lat_cat, data=d.expl.pu)
+m.perm2
+#                      Df SumOfSqs      R2      F Pr(>F)  
+#orchard.type           1   0.6803 0.02462 3.0582  0.040 *
+#lat_cat                1   0.3623 0.01311 1.6286  0.172  
+#orchard.type:lat_cat   1   0.7898 0.02858 3.5504  0.015 *
+#Residual             116  25.8034 0.93370                
+#Total                119  27.6357 1.00000  
 
-#all three marginally higher in organic 
 
+###NMDS for Seed 
+m.NMDS.se <- metaMDS(d.comp.se, distance = "bray", trymax=100, autotransform =FALSE)
+m.NMDS.se
+
+plot(m.NMDS.se, type="t")
+
+#for plotting, need to add columns that give values for 
+#colors and symbols we want in plot
+d.expl.se$Color <- recode_factor(d.expl.se$lat_cat,
+                                 low="red", high="blue")
+d.expl.se$Symbol <- recode_factor(d.expl.se$orchard.type,
+                                  Organic=2, Conventional=1)
+d.expl.se$Symbol <- as.numeric(as.character(d.expl.se$Symbol))
+
+d.expl.se$lat_cat = as.factor(d.expl.se$lat_cat)
+
+
+NMDSse=plot(m.NMDS.se, type="n") #plots the ordination axes only
+points(m.NMDS.se, pch=d.expl.pu$Symbol,
+       col=as.character(d.expl.pu$Color), cex = 0.8)     
+ordiellipse(m.NMDS.se, d.expl.pu$Symbol, conf = 0.95)
+NMDSse
+
+#PERMANOVA
+m.perm3 <- adonis2(d.comp.se~orchard.type*lat_cat, data=d.expl.se)
+m.perm3
+#                     Df SumOfSqs      R2      F Pr(>F)  
+#orchard.type           1   0.6419 0.03179 3.9284  0.017 *
+#lat_cat                1   0.5534 0.02741 3.3871  0.030 *
+#orchard.type:lat_cat   1   0.2044 0.01012 1.2508  0.234  
+#Residual             115  18.7902 0.93067                
+#Total                118  20.1899 1.00000 
+
+
+#Q1-C: Random Forest------------------------------------------------------------
 ###PULP###
 
 m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
@@ -499,7 +419,7 @@ MDSplot(m1.rf.pu, d.expl.pu$orchard.type)
 
 m1.rf.b.pu <- Boruta(d.comp.pu,d.expl.pu$orchard.type)
 m1.rf.b.pu
-plot(m1.rf.b.pu)  
+plot(m1.rf.b.pu,las = 2, cex.axis = 0.7)  
 # 2 attributes confirmed important: G
 
 getSelectedAttributes(m1.rf.b.pu) 
@@ -534,7 +454,7 @@ MDSplot(m1.rf.se, d.expl.se$orchard.type)
 
 m1.rf.b.se <- Boruta(d.comp.se,d.expl.se$orchard.type)
 m1.rf.b.se
-plot(m1.rf.b.se)  #important variables (better than shadow) are in green
+plot(m1.rf.b.se,las = 2, cex.axis = 0.7)  #important variables (better than shadow) are in green
 getSelectedAttributes(m1.rf.b.se) #lists all important ones
 #[1] "E"           "PB2"         "ePicatechin" 
 
@@ -560,52 +480,9 @@ dev.off()
 #o:E
 #PB2, EPI, C 
 
-#Q1-D: Which compounds distinguish fruits based on latitude?----------
-#Analysis: NMDS and random forest
-
-#left joining the "expl" by latitude for RF 
-d.expl <- left_join(d.expl, Orchard[,c(2,40)], by="orchard.num")
-d.expl.sk <- left_join(d.expl.sk, Orchard[,c(2,40)], by="orchard.num")
-d.expl.pu <- left_join(d.expl.pu, Orchard[,c(2,40)], by="orchard.num")
-d.expl.se <- left_join(d.expl.se, Orchard[,c(2,40)], by="orchard.num")
-
-
-###NMDS###
-m.NMDS_2 <- metaMDS(d.comp, distance = "bray", trymax=100, autotransform =FALSE)
-m.NMDS_2
-plot(m.NMDS_2, type="t")
-
-d.expl$Color <- recode_factor(d.expl$lat_cat,
-                              low="red", high="blue")
-d.expl$Symbol <- recode_factor(d.expl$Tissue,
-                               SKIN=8, PULP=1, SEED=2)
-d.expl$Symbol <- as.numeric(as.character(d.expl$Symbol))
-
-d.expl$lat_cat = as.factor(d.expl$lat_cat)
-
-
-       
- plot(m.NMDS_2, type="n") #plots the ordination axes only
-       points(m.NMDS_2, pch=d.expl$Symbol,
-              col=as.character(d.expl$Color), cex = 0.8)     
-       
-
-
-
-#PERMANOVA can test whether the visualized differences are significant
-m.perm <- adonis2(d.comp~lat_cat*Tissue, data=d.expl)
-m.perm
-#lat_cat          1    0.390 0.00334   2.1747  0.041 *  
-#Tissue           2   51.788 0.44448 144.5504  0.001 ***
-#lat_cat:Tissue   2    1.102 0.00946   3.0766  0.002 ** 
-#Residual       353   63.235 0.54272                    
-#Total          358  116.515 1.00000  
-
-
-
-###Random Forest###
+###Random Forest for Latitude ###
 ###skin
-m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$lat_cat, importance=TRUE, 
+m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$lat_cat, d.expl.sk$orchard.type, importance=TRUE, 
                          proximity=TRUE, oob.prox=TRUE, ntree=2000)
 m1.rf.sk$importance
 varImpPlot(m1.rf.sk)
@@ -617,7 +494,7 @@ m1.rf.b.sk
 #12 important attributes 
 
 #plot 
-plot(m1.rf.b.sk)  
+plot(m1.rf.b.sk,las = 2, cex.axis = 0.7)  
 getSelectedAttributes(m1.rf.b.sk) #lists all important ones
 
 # [1] "A"                "F"                "G"               
@@ -666,7 +543,7 @@ MDSplot(m1.rf.pu, d.expl.pu$lat_cat)
 
 m1.rf.b.pu <- Boruta(d.comp.pu,d.expl.pu$lat_cat)
 m1.rf.b.pu
-plot(m1.rf.b.pu)  
+plot(m1.rf.b.pu, las = 2, cex.axis = 0.7)  
 
 getSelectedAttributes(m1.rf.b.pu) 
 #[1] "E"            "F"            "G"            "H"           
@@ -705,7 +582,7 @@ MDSplot(m1.rf.se, d.expl.se$lat_cat)
 
 m1.rf.b.se <- Boruta(d.comp.se,d.expl.se$lat_cat)
 m1.rf.b.se
-plot(m1.rf.b.se)  #important variables (better than shadow) are in green
+plot(m1.rf.b.se, las = 2, cex.axis = 0.7)  #important variables (better than shadow) are in green
 getSelectedAttributes(m1.rf.b.se) #lists all important ones
 #[1] "PB2"         "ePicatechin" "U2"          "I"           "J"          
 #[6] "reynoutrin"  "quercetin" 
@@ -715,7 +592,7 @@ d.comp.se.sel <- data.matrix(d.comp.se[,getSelectedAttributes(m1.rf.b.se)])
 m1.man.se <- manova(d.comp.se.sel ~ d.expl.se$lat_cat)
 summary(m1.man.se)  
 #d.expl.se$lat_cat   1 0.22307   5.3595      6    112 6.753e-05 ***
-  
+
 summary.aov(m1.man.se)  
 #PB2= 8.717e-05
 #epicatechin = 1.703e-05
@@ -735,10 +612,12 @@ dev.off()
 #LOW: NONE 
 
 
+
+
 #Q2: Which abiotic factors are the most important drivers of fruit quality?---------
 #Analysis: principle components analysis followed by PC regression with each variable
-p_clim <- dplyr::select(c,c("Prox.Water", "Longitude","Latitude","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
+p_clim <- dplyr::select(c,c("Prox.Water","elevation", 
+                            "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
 
 #calculate principal components
 results <- prcomp(p_clim, scale = TRUE)
@@ -765,10 +644,10 @@ summary(results)$importance
 summary(results)$importance[2,]
 
 var_explained = results$sdev^2 / sum(results$sdev^2)
-#    PC1     PC2     PC3     PC4     PC5     PC6     PC7     PC8     PC9 
-#0.57948 0.19358 0.11433 0.07249 0.02452 0.00894 0.00572 0.00094 0.00000 
+#  PC1     PC2     PC3     PC4     PC5     PC6     PC7 
+#0.61114 0.15131 0.12861 0.07630 0.02307 0.00957 0.00000 
 
-df <- data.frame(PC=1:9, var_explained=var_explained)
+df <- data.frame(PC=1:7, var_explained=var_explained)
 
 #create scree plot
 ggplot(df, aes(x=PC, y=var_explained)) + 
@@ -782,48 +661,48 @@ ggplot(df, aes(x=PC, y=var_explained)) +
 #bind the results to the data frame 
 pc_clim <- as.data.frame(results$x)
 
-
-#correlation matrix
-#The first matrix shows the correlation coefficients between the variables  
-#the second matrix shows the corresponding p-values.
-rcorr(as.matrix(p_clim))
-
-#now let's visualize this 
-corrplot(cor(p_clim))
-
-testRes = cor.mtest(p_clim, conf.level = 0.95)
-
-## add all p-values
-corrplot(cor(p_clim), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
-
-## add significant level stars
-corrplot(cor(p_clim), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
-         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
-         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
-
-
 #PC's 5, 6, 7, 8, 9 are very low/ not worth looking at
 
 
+#correlation matrix including Latitude and Longitude 
+p_clim1 <- dplyr::select(c,c("Prox.Water","elevation", 
+"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip",
+"Szn.UVI","Latitude", "Longitude"))
+
+#The first matrix shows the correlation coefficients between the variables  
+#the second matrix shows the corresponding p-values.
+rcorr(as.matrix(p_clim1))
+
+#now let's visualize this 
+corrplot(cor(p_clim1))
+
+testRes = cor.mtest(p_clim1, conf.level = 0.95)
+
+## add all p-values
+corrplot(cor(p_clim1), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
+
+## add significant level stars
+corrplot(cor(p_clim1), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
+         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
 
 #Q2-A: Physical Quality---------------------------------------------------------
 ##Linear models PC x quality 
 pc_clim_phys <- cbind(pc_clim, c)
 
-hist(c$Firmness)
-hist(c$SSC)
-hist(c$avgwgt)
-hist(c$maturity.index)
 
 ###Firmness###
-
 p1 <- glmmTMB(Firmness ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p1)
-#PC1                  1.57530    0.27341   5.762 8.33e-09 ***
-#PC3                  2.70855    0.61936   4.373 1.22e-05 ***
+#orchard.typeOrganic  0.04264    1.27173   0.034 0.973252    
+#PC1                  1.60404    0.32095   4.998  5.8e-07 ***
+#PC2                  1.56234    0.64399   2.426 0.015264 *  
+#PC3                  2.36819    0.70735   3.348 0.000814 ***
+#PC4                 -1.70559    0.89457  -1.907 0.056573 . 
 
 
 plot(Firmness ~ PC1, data=pc_clim_phys)
+plot(Firmness ~ PC2, data=pc_clim_phys)
 plot(Firmness ~ PC3, data=pc_clim_phys)
 
 results$rotation
@@ -831,39 +710,42 @@ results$rotation
 ###SSC###
 P2 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + (1|site.code), data= pc_clim_phys)
 summary(P2)
-#PC1                 -1.01359    0.15615  -6.491 8.51e-11 ***
-#PC2                 -0.58994    0.28553  -2.066   0.0388 *  
-#PC3                  0.87971    0.37121   2.370   0.0178 *
+#orchard.typeOrganic -0.08014    0.35712  -0.224  0.82244    
+#PC1                 -1.11783    0.15404  -7.257 3.97e-13 ***
+#PC2                  1.05801    0.33345   3.173  0.00151 ** 
+#PC3                  0.28125    0.33223   0.847  0.39725    
+#PC4                  0.72345    0.43259   1.672  0.09445 . 
 
 
 plot(SSC ~ PC1, data=pc_clim_phys)
 plot(SSC ~ PC2, data=pc_clim_phys)
-plot(SSC ~ PC3, data=pc_clim_phys)
 
 results$rotation
 
 ###AVGWGT
 p3 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p3)
-#PC2                  -8.2380     4.2160  -1.954   0.0507 .  
-#PC3                  10.2852     5.2833   1.947   0.0516 .  
-#PC4                 -12.4581     6.0755  -2.051   0.0403 *   
+#orchard.typeOrganic   0.1284     8.2181   0.016  0.98754    
+#PC1                  -3.2341     2.5251  -1.281  0.20027    
+#PC2                  15.4784     5.3450   2.896  0.00378 ** 
+#PC3                   1.1532     5.4339   0.212  0.83194    
+#PC4                 -10.1635     7.1234  -1.427  0.15364   
 
 plot(avgwgt ~ PC2, data=pc_clim_phys)
-plot(avgwgt ~ PC3, data=pc_clim_phys)
-plot(avgwgt ~ PC4, data=pc_clim_phys)
+
 
 results$rotation
 
 ###Maturity Index 
 p4 <- glmmTMB(maturity.index ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p4)
-#PC1                 -0.26665    0.08381  -3.181  0.00147 ** 
-#PC4                 -0.44814    0.20812  -2.153  0.03129 *  
- 
+#orchard.typeOrganic  0.018648   0.098212   0.190  0.84941    
+#PC1                 -0.302249   0.094930  -3.184  0.00145 ** 
+#PC2                  0.276450   0.192868   1.433  0.15175    
+#PC3                 -0.007687   0.185102  -0.042  0.96687    
+#PC4                 -0.374573   0.263331  -1.422  0.15490  
 
 plot(maturity.index ~ PC1, data=pc_clim_phys)
-plot(maturity.index ~ PC4, data=pc_clim_phys)
 
 results$rotation
 
@@ -885,8 +767,6 @@ summary(pc.sk.pr)
 
 results$rotation
 
-
-
 #PULP#
 pc.pu_clim <- cbind(pc_clim, PulpD)
 
@@ -894,23 +774,11 @@ pc.pu_clim <- cbind(pc_clim, PulpD)
 pc.pu.tp <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim, family=beta_family (link="logit"))
 summary(pc.pu.tp)
-#PC1                 -0.08577    0.05167  -1.660 0.096964 .  
-#PC2                  0.27957    0.08336   3.354 0.000797 ***  
-
-plot(TotalPhen ~ PC2, data=pc.pu_clim)
-
 
 #PhenRich 
 pc.pu.pr <- glmmTMB(PhenRich ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim)
 summary(pc.pu.pr)
-#PC1           0.3597     0.1899    1.89  0.05823 .  
-#PC2           0.9112     0.3412    2.67  0.00758 ** 
-
-
-plot(PhenRich ~ PC1, data=pc.pu_clim)
-plot(PhenRich ~ PC2, data=pc.pu_clim)
-results$rotation
 
 
 #SEED#
@@ -920,25 +788,12 @@ pc.se_clim <- cbind(pc_clim, SeedD)
 pc.se.tp <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.se_clim, family=beta_family (link="logit"))
 summary(pc.se.tp)
-#PC2          0.128315   0.055966    2.29   0.0219 *  
-
-plot(TotalPhen ~ PC2, data=pc.se_clim)
-
-results$rotation
-
 
 #PhenRich 
 pc.se.pr <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 +
                       (1|site.code), data=pc.se_clim)
 summary(pc.se.pr)
-#PC1           0.3597     0.1899    1.89  0.05823 .  
-#PC2           0.9112     0.3412    2.67  0.00758 **
 
-
-plot(PhenRich ~ PC1, data=pc.se_clim)
-plot(PhenRich ~ PC2, data=pc.se_clim)
-
-results$rotation
 
 #Q3: Which specific management practices are the most important drivers of fruit quality?----
 #For this analysis, we'll be running GLMMs against every mgmt variable. 
@@ -1185,412 +1040,6 @@ ggplot(SeedD, aes(x=Acres, y=PhenRich, color=orchard.type))+
   geom_point()
 #starts higher in coventional and decrease oast organic, both decrease 
 
-#Q4: Which pest or diseases presence has the most significant affect on fruit quality-----
-#visualize pest data in indices 
-
-p <- pivot_longer(data=c, cols=21:38, names_to="pest", values_to="index")
-
-ggplot(p, aes(x=pest, y=index))+
-  geom_boxplot()+
-  geom_jitter(width=0.2, height=0.1)
-
-#removing everything that doesn't pass 3 on index 
-#what were left with: 
-#pests: aphids, apple maggots, coddling moth, 
-#disease: fireblight, powdery mildew, 
-
-#correlation matrix
-p_pest <- dplyr::select(c,c(Aphids, Apple.Maggots, Codling.Moth, 
-Powdery.mildew, Fire.Blight))
-
-rcorr(as.matrix(p_pest))
-corrplot(cor(p_pest))
-
-testRes = cor.mtest(p_pest, conf.level = 0.95)
-
-#add all p-values
-corrplot(cor(p_pest), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
-
-#add significant level stars
-corrplot(cor(p_pest), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
-         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
-         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
-
-
-#strong relationships between: 
-#aphinds and apple maggots
-#apple maggots and coddling moth 
-
-#Q4-A: Physical Quality---------------------------------------------------------
-#Examining Relationships of Pest.Index, orchard.type, and latitude 
-#pest index 
-#ssc
-ssc.index <- glmmTMB(SSC ~ orchard.type*Pest.Index+ (1|site.code), 
-                        data=c)
-summary(ssc.index)
-Anova(ssc.index)
-
-#firmness 
-firm.index <- glmmTMB(Firmness ~ orchard.type*Pest.Index+ (1|site.code), 
-                     data=c)
-summary(firm.index)
-Anova(firm.index)
-#nothing 
-
-#avg wgt 
-wgt.index <- glmmTMB(avgwgt ~ orchard.type*Pest.Index+ (1|site.code), 
-                      data=c)
-summary(wgt.index)
-Anova(wgt.index)
-
-ggplot(c, aes(x=Pest.Index, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-#maturity  
-mat.index <- glmmTMB(maturity.index ~ orchard.type*Pest.Index+ (1|site.code), 
-                     data=c)
-summary(mat.index)
-Anova(mat.index)
-#Pest.Index              11.4270  1  0.0007238 ***
-
-ggplot(c, aes(x=Pest.Index, y=maturity.index, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-
-###responses to species###
-###SSC###
-ssc_pest <- glmmTMB(SSC ~ orchard.type + Aphids+Apple.Maggots+Codling.Moth+
-                      Powdery.mildew+Fire.Blight+ 
-                      (1|site.code), 
-                    data=c)
-summary(ssc_pest)
-Anova(ssc_pest)
-#Fire.Blight    5.3607  1    0.02060 *
-#orchard.type   5.6523  1    0.01743 * (organic)
-  
-
-ggplot(c, aes(x=Fire.Blight, y=SSC, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#lower SSC with lower reported fireblight
-
-###avgwgt###
-wgt_pest <- glmmTMB(avgwgt ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                      Powdery.mildew+Fire.Blight+ (1|site.code), 
-                    data=c)
-summary(wgt_pest)
-Anova(wgt_pest)
-#Apple.Maggots  4.8605  1    0.02748 *
-#Powdery.mildew 3.8439  1    0.04993 *
-#Fire.Blight    5.6336  1    0.01762 *
-
-
-ggplot(c, aes(x=Apple.Maggots, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#weight dcreased as apple maggots increase 
-
-ggplot(c, aes(x=Powdery.mildew, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#avgwgt decrease as pow mil increases 
-
-ggplot(c, aes(x=Fire.Blight, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#avgwgt decrease as fireblight increases 
-
-ggplot(c, aes(x=Codling.Moth, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#avgwgt higher in orchards without codling moth, organic weight higher with high pressure 
-
-###firmness###
-frm_pest <- glmmTMB(Firmness ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                      Powdery.mildew+Fire.Blight+  (1|site.code), 
-                    data=c)
-summary(frm_pest)
-Anova(frm_pest)
-#Aphids         4.0144  1    0.04511 *
-#Apple.Maggots  3.5262  1    0.06040 .
-#Powdery.mildew 3.3710  1    0.06636 .
-
-ggplot(c, aes(x=Aphids, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#frimness inreased as aphids increased in conventional orchards 
-
-ggplot(c, aes(x=Apple.Maggots, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increase in conventional, as apple maggots increased
-#decrease in organic 
-
-ggplot(c, aes(x=Powdery.mildew, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decrease as pow mil increase
-
-###maturity###
-mat_pest <- glmmTMB(maturity.index ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                      Powdery.mildew+Fire.Blight+ (1|site.code), 
-                    data=c)
-summary(mat_pest)
-Anova(mat_pest)
-#Powdery.mildew 5.1418  1    0.02336 *
-
-ggplot(c, aes(x=Powdery.mildew, y=maturity.index, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decrease in maturity as pow mil increases 
-
-
-#Q4-B: Fruit Chemistry ---------------------------------------------------------
-#Total Phenolics
-#Skin 
-pest.index.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
-                      data=SkinD, family=beta_family(link="logit"))
-summary(pest.index.tp.sk)
-Anova(pest.index.tp.sk)
-#nothing 
-
-pest.tp.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+ (1|site.code), 
-                      data=SkinD, family=beta_family(link="logit"))
-summary(pest.tp.sk)
-Anova(pest.tp.sk)
-#Powdery.mildew 5.0525  1    0.02459 *
-#Fire.Blight    3.2125  1    0.07308 .
-
-ggplot(SkinD, aes(x=Powdery.mildew, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher total phen in orchards with higher pow mol 
-
-ggplot(SkinD, aes(x=Fire.Blight, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher total phen in orchards with higher fire.blight
-
-
-#Pulp
-pest.index.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
-                            data=PulpD, family=beta_family(link="logit"))
-summary(pest.index.tp.pu)
-Anova(pest.index.tp.pu)
-#nothing 
-
-pest.tp.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+ (1|site.code), 
-                      data=PulpD, family=beta_family(link="logit"))
-summary(pest.tp.pu)
-Anova(pest.tp.pu)
-#orchard.type   5.1942  1    0.02266 * 
-#Aphids         4.6777  1    0.03056 * 
-#Apple.Maggots  4.0006  1    0.04548 * 
-#Powdery.mildew 7.5087  1    0.00614 **
-#Fire.Blight    6.5499  1    0.01049 * 
-
-ggplot(PulpD, aes(x=Aphids, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher total phen in conventional , steady decrease 
-
-ggplot(PulpD, aes(x=Apple.Maggots, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#total phen decrease as applemag increase, steadily higher in conventional 
-
-ggplot(PulpD, aes(x=Powdery.mildew, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increases
-
-ggplot(PulpD, aes(x=Fire.Blight, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increases, higher in conventional 
-
-#Seed 
-pest.index.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type*Pest.Index +(1|site.code), 
-                            data=SeedD, family=beta_family(link="logit"))
-summary(pest.index.tp.se)
-Anova(pest.index.tp.se)
-
-
-pest.tp.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+ (1|site.code), 
-                      data=SeedD, family=beta_family(link="logit"))
-summary(pest.tp.se)
-Anova(pest.tp.se)
-#orchard.type   13.5904  1  0.0002273 ***
-  
-
-##PhenRich##
-#skin 
-pest.index.pr.sk <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
-                            data=SkinD)
-summary(pest.index.pr.sk)
-Anova(pest.index.pr.sk)
-
-
-pest.pr.sk <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+ (1|site.code), 
-                      data=SkinD)
-summary(pest.pr.sk)
-Anova(pest.pr.sk)
-#Powdery.mildew 14.2281  1  0.0001619 ***
-
-ggplot(SkinD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increase as powmil increases 
-
-#pulp
-pest.index.pr.pu <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
-                            data=PulpD)
-summary(pest.index.pr.pu)
-Anova(pest.index.pr.pu)
-
-
-pest.pr.pu <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+(1|site.code), 
-                      data=PulpD)
-summary(pest.pr.pu)
-Anova(pest.pr.pu)
-#Aphids          7.0735  1   0.007823 ** 
-#Apple.Maggots   8.1773  1   0.004242 ** 
-#Powdery.mildew 19.5452  1  9.825e-06 ***
-
-ggplot(PulpD, aes(x=Apple.Maggots, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#increase in conventional, decrease in organic 
-
-ggplot(PulpD, aes(x=Aphids, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#o starts low eend shigh, conventional starts high and ends low 
-
-ggplot(PulpD, aes(x=Powdery.mildew, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#sharp increase in o, starts low ends high, both increae 
-
-
-#Seed
-pest.index.pr.se <- glmmTMB(PhenRich~ orchard.type*Pest.Index +(1|site.code), 
-                            data=SeedD)
-summary(pest.index.pr.se)
-Anova(pest.index.pr.se)
-
-
-pest.pr.se <- glmmTMB(PhenRich ~ orchard.type+Aphids+Apple.Maggots+Codling.Moth+
-                        Powdery.mildew+Fire.Blight+(1|site.code), 
-                      data=SeedD)
-summary(pest.pr.se)
-Anova(pest.pr.se)
-#orchard.type   13.7879  1  0.0002046 ***
-#Aphids          4.4591  1  0.0347154 *  
-#Codling.Moth   19.2622  1  1.139e-05 ***
-
-
-ggplot(SeedD, aes(x=Aphids, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#c starts high ends low, o reverse 
-
-ggplot(SeedD, aes(x=Codling.Moth, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decrease c,increase o
-
-
-#Q5: How does fruit quality compare to total phenolics and phenolic richness--------
-#skin 
-sk.tp.qual <- glmmTMB((TotalPhen/1000000)+0.0001~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                   , data=SkinD,family=beta_family(link="logit"))
-summary(sk.tp.qual)
-Anova(sk.tp.qual)
-#nothing 
-
-sk.pr.qual <- glmmTMB(PhenRich~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                   ,data=SkinD)
-summary(sk.pr.qual)
-Anova(sk.pr.qual)
-#nothing 
-
-
-#pulp 
-pu.tp.qual <- glmmTMB((TotalPhen/1000000)+0.0001~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                      , data=PulpD,family=beta_family(link="logit"))
-summary(pu.tp.qual)
-Anova(pu.tp.qual)
-#nothing 
-
-pu.pr.qual <- glmmTMB(PhenRich~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                      ,data=PulpD)
-summary(pu.pr.qual)
-Anova(pu.pr.qual)
-#SSC            3.7418  1    0.05307 .
-#avgwgt         4.7708  1    0.02895 *
-#maturity.index 2.9161  1    0.08770 .
-
-ggplot(PulpD, aes(x=SSC, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#SSC increase as phen rich decreases 
-
-ggplot(PulpD, aes(x=avgwgt, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#avg wgt increase as phen rich increasses 
-
-
-ggplot(PulpD, aes(x=maturity.index, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#maturity increase as phen rich decreases 
-
-
-#pulp avgwgt (figure is not correct)
-ggplot(PulpD, aes(x=avgwgt, y=Latitude, color=orchard.type)) + 
-  geom_smooth(method = "lm") +
-  geom_point() + 
-  scale_y_continuous(
-    "Latitude", 
-    sec.axis = sec_axis(~ . * .25, name = "Phenolic Richness")
-  )+
-  theme_classic()
-
-#seed
-se.tp.qual <- glmmTMB((TotalPhen/1000000)+0.0001~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                      , data=SeedD,family=beta_family(link="logit"))
-summary(se.tp.qual)
-Anova(se.tp.qual)
-#nothing 
-
-se.pr.qual <- glmmTMB(PhenRich~ orchard.type+SSC+Firmness+avgwgt+maturity.index + (1|site.code)
-                      ,data=SeedD)
-summary(se.pr.qual)
-Anova(se.pr.qual)
-#SSC            10.1002  1   0.001483 **
-#avgwgt          5.0848  1   0.024136 * 
-
-
-ggplot(SeedD, aes(x=SSC, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#SSC increase as phen rich decrease 
-
-ggplot(SeedD, aes(x=avgwgt, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#AVG wgt increase as phen rich decreases 
-
-
 #Multiple plot function----------------------------------------------------------------------------------------------
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -1638,63 +1087,9 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 
-#Aggregated Data----------------------------------------------------------------
-#Physical
-a1= aggregate(SSC~orchard.type, data=c, FUN=mean)
-#Conventional 10.88182
-#Organic 11.78462
-
-aggregate(Firmness~orchard.type, data=c, FUN=mean)
-#Conventional 22.26473
-#Organic 22.44308
-
-aggregate(avgwgt~orchard.type, data=TreeLat, FUN=mean)
-#Conventional 100.29091
-#Organic 98.67692
-
-aggregate(maturity.index~orchard.type, data=c, FUN=mean)
-#Conventional 3.781818
-#Organic 4.138462
-
-#Chemical 
-aggregate(TotalPhen~Tissue, data=d, FUN=mean)
-#  Tissue TotalPhen
-#1   PULP  7330.078
-#2   SEED 67524.994
-#3   SKIN 69199.606
-
-
-aggregate(PhenRich~Tissue, data=d, FUN=mean)
-#  Tissue  PhenRich
-#1   PULP  9.341667
-#2   SEED 12.462185
-#3   SKIN 23.208333
-
-
-ag.pr <- aggregate(PhenRich~Tissue+orchard.type, data=d, FUN=mean)
-#  Tissue orchard.type  PhenRich
-#1   PULP Conventional  9.509091
-#2   SEED Conventional 13.222222
-#3   SKIN Conventional 23.200000
-#4   PULP      Organic  9.200000
-#5   SEED      Organic 11.830769
-#6   SKIN      Organic 23.215385
-
-plot(ag.pr)
-
-aggregate(data=d.comp, FUN=mean)
-
-aggregate(TotalPhen/1000~Tissue+orchard.type, data=d, FUN=mean)
-# Tissue orchard.type TotalPhen/1000
-#1   PULP Conventional       8.398422
-#2   SEED Conventional      82.895088
-#3   SKIN Conventional      69.150425
-#4   PULP      Organic       6.426095
-#5   SEED      Organic      54.755993
-#6   SKIN      Organic      69.241221
-
-
-
+#plots----------------------------------------------------------------
+#Q1-A
+#Physical traits by management level  
 ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1732,43 +1127,178 @@ ag4= ggplot(TreeLat, aes(x=orchard.type, y=maturity.index, color="#3EBCD2", "#9A
 
 multiplot(ag1,ag2,ag3,ag3, cols=2)
   
+#Q1-B: Total Phenolics and Phenolic Richness by Managment System 
+sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Skin Total Phenolics (ug/g)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+sk.pr.ag=ggplot(d.sk, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Skin Phenolic Richness") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+#pulp
+pu.tp.ag=ggplot(d.pu, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Pulp Total Phenolics (ug/g)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+pu.pr.ag=ggplot(d.pu, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Pulp Phenolic Richness") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+#seed
+se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Seed Total Phenolics (ug/g)") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+se.pr.ag=ggplot(d.se, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Seed Phenolic Richness") +
+  xlab ("Management System")+
+  geom_smooth(method=glm, se=FALSE)+
+  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+multiplot(sk.tp.ag, sk.pr.ag, pu.tp.ag, pu.pr.ag, se.tp.ag, se.pr.ag, cols=3)
+
+#Q1-A: Physical Traits over Latitude 
+la1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Soluble Sugar Content") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm)+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+la2= ggplot(TreeLat, aes(x=Latitude, y=Firmness, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm)+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+la3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Weight") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm)+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+la4= ggplot(TreeLat, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Maturity Index") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm)+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
 
+multiplot(la1,la2,la3,la4, cols=2)
 
 
+#Q1-A: Average Weight split by Latitudinal Categories 
+avglow <- ggplot(Tree_low, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  xlab ("Latitude < 42 ") +
+  ylab ("Average Weight") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+avglow
 
-###r maps 
-install.packages("tmap")
-install.packages("sf")
+avghigh <- ggplot(Tree_high, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+  theme_classic() +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  xlab ("Latitude > 42 ") +
+  ylab ("Average Weight") +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_x_discrete(labels=c("Conventional", "Organic"))
+avghigh
 
-library(tmap)
-library(sf)
-
-#Prepare a data frame with your latitude and longitude coordinates.
-#For this example, I'll create a simple data frame with two points:
-# Sample data frame with latitude and longitude
-
-map <- data.frame(
-  Name = c(c$orchard.num),
-  Latitude = c(c$Latitude),
-  Longitude = c(c$Longitude))
-
-#Convert the data frame to a sf object:
-sf_data <- st_as_sf(map, coords = c("Longitude", "Latitude"))
-
-#Create a geographic map using tm_basemap and tm_shape from the tmap package:
-# Create a simple map with OpenStreetMap data
-map1 <- tm_shape(sf_data) +
-  tm_bubbles() +
-  tm_layout(title = "Map with Latitude and Longitude")
-tmap_mode("plot")
-
-plot(map1)
+multiplot(avglow, avghigh, cols=2)
 
 
+#Q1-B Total Phenolic by Tissue Type over Latitude 
+ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Total Phenolics ug/g") +
+  xlab ("Latitude")+
+  geom_smooth(method=lm ,alpha = .15,aes(fill = Tissue))+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F", "orange"),name="Tissue")
 
-# Replace 'YOUR_GOOGLE_API_KEY' with your actual Google Maps API key
-map <- get_googlemap(center = c(lon = -120, lat = 36), zoom = 6, scale = 2, maptype = "terrain", key = "YOUR_GOOGLE_API_KEY")
+
+##Q1-B Phenolic Richness by Tissue Type over Latitude 
+ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Phenolic Richness") +
+  xlab ("Latitude")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = Tissue))+
+  theme_bw()+
+  scale_color_manual(values=c("#3EBCD2", "#9A607F", "orange"),name="Tissue")
+
+#Map Plot----------------------------------------------------------------------
+install.packages("usmap")
+library(usmap)
+library(ggplot2)
+
+p1=plot_usmap(include = c("CA", "OR", "WA")) +
+  labs(title = "Western US States",
+       subtitle = "These are the states in the Pacific Timezone.")
+
+#create data frame with the values that we want to use 
+c1 <- data.frame(
+  Orchard= c$orchard.num,
+  Latitude = c$Latitude,
+  Longitude = c$Longitude,
+  Otype= c$orchard.type)
+
+#data has to be transfromed for some reason 
+c2= usmap_transform(c1,
+  input_names = c("Longitude", "Latitude"),
+  output_names = c("x", "y"))
+
+#latitude lines 
+lines_data <- data.frame(
+  x = rep(c(-120, -116), each = 2),
+  y = rep(c(45, 35), each = 2)
+)
+
+#transform the points 
+lines_data =usmap_transform(lines_data,
+                            input_names = c("x", "y"),
+                            output_names = c("x", "y"))
+
+# Create the US map
+p1= plot_usmap(include = c("CA", "OR", "WA")) +
+  # Add your latitude and longitude points
+  geom_point(data = c2, aes(x = x, y = y, shape=Otype, color=Otype), size = 3)+
+  #attempting to add lat and longitude lines 
+  #lab title 
+  labs(title = "Participating Orchards")
+p1  
+
 
 
 
