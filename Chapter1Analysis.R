@@ -20,16 +20,16 @@ library(emmeans)
 #Read Data Organization and Restructuring---------------------------------------
 #Read in Data sheets
 #Orchard Level Data (24 obs)
-Orchard <- read_csv("Orchard Level Data.csv")
+Orchard <- read_csv("Ozowara_et_al_OrchardLevelData.csv")
 Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
 
 #Tree Level Data (120 obs)
-Tree <- read_csv("Tree Level Data.csv")
+Tree <- read_csv("Ozowara_et_al_TreeLevelData.csv")
 View(Tree_Level_Data)
 Tree$orchard.num <- as.factor(as.character(Tree$orchard.num))
 
 #Phenolics Data (359 obs)
-d <-read_csv("FruitLevelData_revised - Sheet1.csv")
+d <-read_csv("Ozowara_et_al_FruitLevelData.csv")
 d$orchard.num <- as.factor(as.character(d$orchard.num))
 
 #Organizing Phenolics Data for Q1#
