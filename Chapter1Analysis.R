@@ -408,6 +408,8 @@ m.perm3
 
 
 #Q1-C: Random Forest------------------------------------------------------------
+###Skin was dropped 
+
 ###PULP###
 
 m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
@@ -615,6 +617,7 @@ dev.off()
 
 #Q2: Which abiotic factors are the most important drivers of fruit quality?---------
 #Analysis: principle components analysis followed by PC regression with each variable
+#create a vector for all of the PCs
 p_clim <- dplyr::select(c,c("Prox.Water","elevation", 
                             "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
 
@@ -686,7 +689,7 @@ corrplot(cor(p_clim1), p.mat = testRes$p, method = 'color', diag = FALSE, type =
          insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
 
 #Q2-A: Physical Quality---------------------------------------------------------
-##Linear models PC x quality 
+##Linear models for PC x quality 
 pc_clim_phys <- cbind(pc_clim, c)
 
 
@@ -749,6 +752,7 @@ plot(maturity.index ~ PC1, data=pc_clim_phys)
 results$rotation
 
 #Q2-B: Fruit Chemistry----------------------------------------------------------
+#Linear models for PC X total phenolics and phenolic richness 
 #SKIN#
 pc.sk_clim <- cbind(pc_clim, SkinD)
 
@@ -1248,10 +1252,6 @@ ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue, shape=orchard.ty
   scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")+
   scale_shape_manual(values=c(16, 17), name="Management System")+
 guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))
-
-
-
-
 
 
 
