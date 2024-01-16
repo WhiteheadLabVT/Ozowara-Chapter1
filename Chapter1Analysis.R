@@ -1,5 +1,4 @@
 #Chapter 1 Analysis 
-setwd("C:\\Users\\xozow\\OneDrive\\Documents\\Dissertation_Data\\Ozowara-Chapter1")
 rm(list=ls()) # clears work space
 #Install packages---------------------------------------------------------------
 library(ggplot2)
@@ -1239,66 +1238,85 @@ avghigh
 multiplot(avglow, avghigh, cols=2)
 
 
-#Q1-B Total Phenolic by Tissue Type over Latitude 
-ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue)) +
+###Q1-B Phenolic Richness by Tissue Type over Latitude 
+ggplot(ChemLat, aes(x=Latitude, y=TotalPhen/1000, color=Tissue, shape=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
   ylab ("Total Phenolics ug/g") +
   xlab ("Latitude")+
-  geom_smooth(method=lm ,alpha = .15,aes(fill = Tissue))+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_bw()+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F", "orange"),name="Tissue")
+  scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")+
+  scale_shape_manual(values=c(16, 17), name="Management System")+
+guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))
+
+
+
+
+
 
 
 ##Q1-B Phenolic Richness by Tissue Type over Latitude 
-ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
+ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue), shape=orchard.type) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
   ylab ("Phenolic Richness") +
   xlab ("Latitude")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = Tissue))+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_bw()+
-  scale_color_manual(values=c("#3EBCD2", "#9A607F", "orange"),name="Tissue")
+  scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")
 
 #Map Plot----------------------------------------------------------------------
 install.packages("usmap")
 library(usmap)
 library(ggplot2)
 
-p1=plot_usmap(include = c("CA", "OR", "WA")) +
-  labs(title = "Western US States",
-       subtitle = "These are the states in the Pacific Timezone.")
-
-#create data frame with the values that we want to use 
+# Your data transformation code
 c1 <- data.frame(
-  Orchard= c$orchard.num,
+  Orchard = c$orchard.num,
   Latitude = c$Latitude,
   Longitude = c$Longitude,
-  Otype= c$orchard.type)
-
-#data has to be transfromed for some reason 
-c2= usmap_transform(c1,
-  input_names = c("Longitude", "Latitude"),
-  output_names = c("x", "y"))
-
-#latitude lines 
-lines_data <- data.frame(
-  x = rep(c(-120, -116), each = 2),
-  y = rep(c(45, 35), each = 2)
+  Otype = c$orchard.type
 )
 
-#transform the points 
-lines_data =usmap_transform(lines_data,
-                            input_names = c("x", "y"),
-                            output_names = c("x", "y"))
+
+c2 <- usmap_transform(
+  c1,
+  input_names = c("Longitude", "Latitude"),
+  output_names = c("x", "y")
+)
+
+c2 <- c2 %>%
+  mutate(Orchard = ifelse(duplicated(select(c2, x)), 
+"Both", as.character(Otype)))
+
 
 # Create the US map
-p1= plot_usmap(include = c("CA", "OR", "WA")) +
-  # Add your latitude and longitude points
-  geom_point(data = c2, aes(x = x, y = y, shape=Otype, color=Otype), size = 3)+
-  #attempting to add lat and longitude lines 
-  #lab title 
-  labs(title = "Participating Orchards")
-p1  
+p1 <- plot_usmap(include = c("CA", "OR", "WA")) +
+  geom_point(data = c2, aes(x = x, y = y, color = Otype), 
+             size = 3, 
+alpha = 0.7, position = position_jitter(width = 10, height = 10)) +
+  labs(
+    title = "          Participating Orchards",
+    caption = "                                 August 2023"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 10),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    panel.background = element_rect(fill = "white"),  # Set background color
+    panel.grid = element_blank(),                      # Remove grid lines
+    panel.grid.major = element_blank()                  # Remove major grid lines
+  ) +
+  scale_color_manual(values = c("darkgreen", "#9A607F", "#3EBCD2"), name = "Management System")+
+  scale_x_continuous(labels = c("-123°W", "-120°W", "-117°W", "-114°W", "-111°W"), expand = c(0, 0)) +  # Set breaks and labels for x-axis
+  scale_y_continuous(labels = c("34°N", "38°N", "42°N", "46°N"), expand = c(0, 0))    # Set breaks and labels for y-axis
+p1
 
-
+ggsave("output_plot.png", plot = p1, device = "png", bg = "transparent")
 
 
