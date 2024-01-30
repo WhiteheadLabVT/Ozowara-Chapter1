@@ -1046,53 +1046,6 @@ ggplot(SeedD, aes(x=Acres, y=PhenRich, color=orchard.type))+
   geom_point()
 #starts higher in coventional and decrease oast organic, both decrease 
 
-#Multiple plot function----------------------------------------------------------------------------------------------
-#
-# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
-# - cols:   Number of columns in layout
-# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
-#
-# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
-# then plot 1 will go in the upper left, 2 will go in the upper right, and
-# 3 will go all the way across the bottom.
-#
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-  
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-  
-  numPlots = length(plots)
-  
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-  
-  if (numPlots==1) {
-    print(plots[[1]])
-    
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-      
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
-
-
 #Physical Traits and Management System Plot---------------------------
 #SSC
 ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
@@ -1497,5 +1450,136 @@ ggsave("output_plot.png", plot = p1, device = "png", bg = "transparent")
 
 
 
+
+
+
+#pca analysis plots-------------------------------------------------------------
+#firmness 
+f.pc1=ggplot(pc_clim_phys, aes(x=Firmness, y=PC1, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC1") +
+  xlab ("Firmness")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+f.pc1 <- f.pc1 + annotate("text", label = "a",
+                      size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+f.pc1 <- f.pc1 + guides(color = "none")
+
+f.pc2=ggplot(pc_clim_phys, aes(x=Firmness, y=PC2, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC2") +
+  xlab ("Firmness")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+f.pc2 <- f.pc2 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+f.pc2 <- f.pc2 + guides(color = "none")
+
+
+f.pc3=ggplot(pc_clim_phys, aes(x=Firmness, y=PC3, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC3") +
+  xlab ("Firmness")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+f.pc3 <- f.pc3 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+f.pc3 <- f.pc3 + guides(color = "none")
+
+#ssc
+s.pc1=ggplot(pc_clim_phys, aes(x=SSC, y=PC1, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC1") +
+  xlab ("SSC")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+s.pc1 <- s.pc1 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+s.pc1 <- s.pc1 + guides(color = "none")
+
+
+s.pc2=ggplot(pc_clim_phys, aes(x=SSC, y=PC2, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC2") +
+  xlab ("SSC")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+s.pc2 <- s.pc2 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+s.pc2 <- s.pc2 + guides(color = "none")
+
+#avgwgt
+a.pc2=ggplot(pc_clim_phys, aes(x=avgwgt, y=PC2, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC2") +
+  xlab ("Average Weight")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+a.pc2 <- a.pc2 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+a.pc2 <- a.pc2 + guides(color = "none")
+
+
+#maturity
+mat.pc1=ggplot(pc_clim_phys, aes(x=avgwgt, y=PC1, color=orchard.type)) +
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  ylab ("PC1") +
+  xlab ("Average Weight")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+
+#add graph label for multiplot 
+mat.pc1 <- mat.pc1 + annotate("text", label = "a",
+                          size = 6, vjust = 1, hjust = 5)
+
+
+legend_plot <- ggplot(TreeLat, aes(x = 0, y = 0, color = orchard.type)) +
+  geom_point(alpha = 0) +  # This will add a dummy point with alpha = 0 (transparent)
+  theme_void() +  # This removes axis labels and ticks
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  
+
+
+
+
+# Create a jpg file to save the plots
+jpeg("pc-firm.jpg", width = 800, height = 800, units = "px", quality = 100)
+
+# Arrange and print the plots
+grid.arrange(f.pc1, f.pc2, f.pc3,s.pc1, s.pc2,a.pc2,mat.pc1, ncol = 2)
+
+# Close the jpg file
+dev.off()
 
 
