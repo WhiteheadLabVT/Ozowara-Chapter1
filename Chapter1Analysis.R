@@ -17,6 +17,9 @@ library(corrplot)#plotting correlation matrix
 library(readr)
 library(GGally)
 library(emmeans) 
+library(gridExtra) #multiplotting 
+
+
 #Read Data Organization and Restructuring---------------------------------------
 #Read in Data sheets
 #Orchard Level Data (24 obs)
@@ -381,19 +384,19 @@ plot(m.NMDS.se, type="t")
 
 #for plotting, need to add columns that give values for 
 #colors and symbols we want in plot
-d.expl.se$Color <- recode_factor(d.expl.se$lat_cat,
-                                 low="red", high="blue")
-d.expl.se$Symbol <- recode_factor(d.expl.se$orchard.type,
-                                  Organic=2, Conventional=1)
+d.expl.se$Color <- recode_factor(d.expl.se$orchard.type,
+                                 Organic="red", Conventional="blue")
+d.expl.se$Symbol <- recode_factor(d.expl.se$lat_cat,
+                                  high=2, low=1)
 d.expl.se$Symbol <- as.numeric(as.character(d.expl.se$Symbol))
 
 d.expl.se$lat_cat = as.factor(d.expl.se$lat_cat)
 
 
 NMDSse=plot(m.NMDS.se, type="n") #plots the ordination axes only
-points(m.NMDS.se, pch=d.expl.pu$Symbol,
-       col=as.character(d.expl.pu$Color), cex = 0.8)     
-ordiellipse(m.NMDS.se, d.expl.pu$Symbol, conf = 0.95)
+points(m.NMDS.se, pch=d.expl.se$Symbol,
+       col=as.character(d.expl.se$Color), cex = 0.8)     
+ordiellipse(m.NMDS.se, d.expl.se$Symbol, conf = 0.95)
 NMDSse
 
 #PERMANOVA
@@ -1090,9 +1093,8 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 
-#plots----------------------------------------------------------------
-#Q1-A
-#Physical traits by management level  
+#Physical Traits and Management System Plot---------------------------
+#SSC
 ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1102,6 +1104,15 @@ ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
   theme_classic() +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"))
 
+#add graph label for multiplot 
+ag1 <- ag1 + annotate("text", x = 1, y = max(TreeLat$SSC), label = "a",
+                      size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+ag1 <- ag1 + guides(color = "none")
+
+
+#Firmness
 ag2= ggplot(TreeLat, aes(x=orchard.type, y=Firmness, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1111,6 +1122,12 @@ ag2= ggplot(TreeLat, aes(x=orchard.type, y=Firmness, color=orchard.type)) +
   theme_classic()+
   scale_color_manual(values=c("#3EBCD2", "#9A607F"))
 
+ag2 <- ag2 + annotate("text", x = 1, y = max(TreeLat$Firmness), 
+                      label = "b", size = 6, vjust = 1, hjust = 5)
+ag2 <- ag2 + guides(color = "none")
+
+
+#Average Weight 
 ag3= ggplot(TreeLat, aes(x=orchard.type, y=avgwgt, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1120,17 +1137,39 @@ ag3= ggplot(TreeLat, aes(x=orchard.type, y=avgwgt, color=orchard.type)) +
   theme_classic() +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-ag4= ggplot(TreeLat, aes(x=orchard.type, y=maturity.index, color="#3EBCD2", "#9A607F")) +
+ag3 <- ag3 + annotate("text", x = 1, y = max(TreeLat$avgwgt), 
+                      label = "c", size = 6, vjust = 1, hjust = 5)
+ag3 <- ag3 + guides(color = "none")
+
+
+#Maturity Index 
+ag4= ggplot(TreeLat, aes(x=orchard.type, y=maturity.index, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
   ylab ("Cornell Starch-Iodine Value") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() 
+  theme_classic() +
+  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-multiplot(ag1,ag2,ag3,ag3, cols=2)
-  
-#Q1-B: Total Phenolics and Phenolic Richness by Managment System 
+ag4 <- ag4 + annotate("text", x = 1, y = max(TreeLat$maturity.index),
+                      label = "d", size = 6, vjust = 1, hjust = 5)
+
+ag4 <- ag4 + guides(color = "none")
+
+
+# Create a jpg file to save the plots
+jpeg("output_plots.jpg", width = 1000, height = 800, units = "px", quality = 100)
+
+# Arrange and print the plots
+grid.arrange(ag1, ag2, ag3, ag4, ncol = 2)
+
+# Close the jpg file
+dev.off()
+
+
+#Total Phenolics & PhenRich Plot by Mgmt--------------------------------------------------------------------------- 
+#Skin total Phenolics 
 sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1139,6 +1178,15 @@ sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
+#add graph label for multiplot 
+sk.tp.ag <- sk.tp.ag + annotate("text", x = 1, y = max(d.sk$TotalPhen/1000), label = "b",
+                      size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+sk.tp.ag <- sk.tp.ag + guides(color = "none")
+
+
+#skin phenolic richness 
 sk.pr.ag=ggplot(d.sk, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1146,7 +1194,16 @@ sk.pr.ag=ggplot(d.sk, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-#pulp
+
+#add graph label for multiplot 
+sk.pr.ag <- sk.pr.ag + annotate("text", x = 1, y = max(d.sk$PhenRich), label = "a",
+                                size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+sk.pr.ag <- sk.pr.ag + guides(color = "none")
+
+
+#pulp total phenolics 
 pu.tp.ag=ggplot(d.pu, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1155,6 +1212,15 @@ pu.tp.ag=ggplot(d.pu, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
+#add graph label for multiplot 
+pu.tp.ag <- pu.tp.ag + annotate("text", x = 1, y = max(d.pu$TotalPhen/1000), label = "d",
+                                size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+pu.tp.ag <- pu.tp.ag + guides(color = "none")
+
+
+#pulp phenolic richness 
 pu.pr.ag=ggplot(d.pu, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1162,7 +1228,15 @@ pu.pr.ag=ggplot(d.pu, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-#seed
+
+pu.pr.ag <- pu.pr.ag + annotate("text", x = 1, y = max(d.pu$PhenRich), label = "c",
+                                size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+pu.pr.ag <- pu.pr.ag + guides(color = "none")
+
+
+#seed total phenolics 
 se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1171,6 +1245,13 @@ se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
+se.tp.ag <- se.tp.ag + annotate("text", x = 1, y = max(d.se$TotalPhen/1000), label = "f",
+                                size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+se.tp.ag <- se.tp.ag + guides(color = "none")
+
+#seed phenolic richness 
 se.pr.ag=ggplot(d.se, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1179,54 +1260,114 @@ se.pr.ag=ggplot(d.se, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-multiplot(sk.tp.ag, sk.pr.ag, pu.tp.ag, pu.pr.ag, se.tp.ag, se.pr.ag, cols=3)
 
-#Q1-A: Physical Traits over Latitude 
-la1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
+se.pr.ag <- se.pr.ag + annotate("text", x = 1, y = max(d.se$PhenRich), label = "e",
+                                size = 6, vjust = 1, hjust = 6)
+
+#remove legend for multiplot
+se.pr.ag <- se.pr.ag + guides(color = "none")
+
+
+# Convert each plot to a grob
+sk.pr.grob <- ggplotGrob(sk.pr.ag)
+pu.pr.grob <- ggplotGrob(pu.pr.ag)
+se.pr.grob <- ggplotGrob(se.pr.ag)
+sk.tp.grob <- ggplotGrob(sk.tp.ag)
+pu.tp.grob <- ggplotGrob(pu.tp.ag)
+se.tp.grob <- ggplotGrob(se.tp.ag)
+
+# Arrange the three plots using grid.arrange
+combined_plot <- grid.arrange(sk.pr.grob, sk.tp.grob, pu.pr.grob,
+pu.tp.grob, se.pr.grob,se.tp.grob, ncol = 2,  
+layout_matrix = rbind(c(1, 2), c(3, 4), c(5, 6)),
+heights = c(10, 10, 10)  # Adjust the heights as needed
+)
+
+# Save the combined plot as a JPEG file
+ggsave("output_plots.jpg", width = 1000, height = 800, units = "px", quality = 100)
+
+
+
+
+#Q1-A: Physical Traits over Latitude-------------------------------------------- 
+#SSC
+ag1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
   ylab ("Soluble Sugar Content") +
   xlab ("Latitude")+
-  geom_smooth(method=lm)+
-  theme_bw()+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-la2= ggplot(TreeLat, aes(x=Latitude, y=Firmness, color=orchard.type)) +
+#add graph label for multiplot 
+ag1 <- ag1 + annotate("text", label = "a",
+                      size = 6, vjust = 1, hjust = 5)
+
+#remove legend for multiplot
+ag1 <- ag1 + guides(color = "none")
+
+
+#Firmness
+ag2= ggplot(TreeLat, aes(x=Latitude, y=Firmness, color=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Firmness") +
+  ylab ("Firnmness (N)") +
   xlab ("Latitude")+
-  geom_smooth(method=lm)+
-  theme_bw()+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-la3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+ag2 <- ag2 + annotate("text", 
+                      label = "b", size = 6, vjust = 1, hjust = 5)
+ag2 <- ag2 + guides(color = "none")
+
+
+#Average Weight 
+ag3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Average Weight") +
+  ylab ("Average Weight (g)") +
   xlab ("Latitude")+
-  geom_smooth(method=lm)+
-  theme_bw()+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
-la4= ggplot(TreeLat, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
+ag3 <- ag3 + annotate("text", 
+                      label = "b", size = 6, vjust = 1, hjust = 5)
+ag3 <- ag3 + guides(color = "none")
+
+#Maturity Index 
+ag4= ggplot(TreeLat, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Maturity Index") +
+  ylab ("Cornell Starch-Iodine Value") +
   xlab ("Latitude")+
-  geom_smooth(method=lm)+
-  theme_bw()+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
 
+ag4 <- ag4 + annotate("text",
+                      label = "d", size = 6, vjust = 1, hjust = 5)
 
-multiplot(la1,la2,la3,la4, cols=2)
+
+# Create a jpg file to save the plots
+jpeg("physlat.jpg", width = 1000, height = 800, units = "px", quality = 100)
+
+# Arrange and print the plots
+grid.arrange(ag1, ag2, ag3, ag4, ncol = 2)
+
+# Close the jpg file
+dev.off()
 
 
-#Q1-A: Average Weight split by Latitudinal Categories 
-avglow <- ggplot(Tree_low, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
+#Q1-A: Average Weight split by Latitudinal Categories---------------------------
+avglow <- ggplot(TreeLat, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
   theme_classic() +
   geom_boxplot(outlier.shape=NA)+
   geom_point(position=position_jitterdodge(jitter.width=.2))+
   xlab ("Latitude < 42 ") +
   ylab ("Average Weight") +
   scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
-  scale_x_discrete(labels=c("Conventional", "Organic"))
+  scale_x_discrete(labels=c("Conventional", "Organic"))+
+  facet_grid(SSC ~ Firmness, scales = "free", space = "free") +
+  labs(subtitle = "Additional X-axis Variables")
 avglow
 
 avghigh <- ggplot(Tree_high, aes(x=orchard.type, y=avgwgt, color=orchard.type))+
@@ -1263,6 +1404,41 @@ ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue), shape=orchard.type) +
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_bw()+
   scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")
+
+
+
+
+
+
+
+
+
+
+
+
+
+ggplot(TreeLat, aes(x = interaction(x, group), y = y, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Barplot with Three X-axis Variables and One Y-axis Variable",
+       x = "X-axis Label",
+       y = "Y-axis Label") +
+  scale_fill_manual(values = c("Group1" = "blue", "Group2" = "red"))  # Customize fill colors if needed
+In this example, the interaction(x, group) creates a combined factor variable 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #Map Plot----------------------------------------------------------------------
 install.packages("usmap")
@@ -1318,5 +1494,8 @@ alpha = 0.7, position = position_jitter(width = 10, height = 10)) +
 p1
 
 ggsave("output_plot.png", plot = p1, device = "png", bg = "transparent")
+
+
+
 
 
