@@ -437,7 +437,6 @@ m.perm3
 ###Skin was dropped 
 
 ###PULP###
-
 m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
                          proximity=TRUE, oob.prox=TRUE, ntree=2000)
 m1.rf.pu$importance
@@ -846,36 +845,13 @@ mgmt1 <- glmmTMB(SSC ~ orchard.type+ Cultivation + Herbicides + Com_Mul + Mowing
                  data=c)
 summary(mgmt1)
 Anova(mgmt1)
-#Herbicides   49.8749  1  1.639e-12 ***
-  
-ggplot(c, aes(x=Herbicides, y=SSC, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
 
-##higher ssc in organic orchards without herbicides 
-##higher ssc in conventional orchards with herbicides 
-
-
-#avgwgt
+#Average Weight
 mgmt2 <- glmmTMB(avgwgt ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                    Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                  data=c)
 summary(mgmt2)
 Anova(mgmt2)
-#Acres        9.7082  1   0.001835 **
-#Cultivation  4.0286  1   0.044734 * 
-  
-  
-ggplot(c, aes(x=Acres, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-
-#steady increase in weigth as acregae increases 
-
-ggplot(c, aes(x=Cultivation, y=avgwgt, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher weights in con without cult
 
 
 #Firmness 
@@ -884,12 +860,6 @@ mgmt3 <- glmmTMB(Firmness ~ orchard.type + Cultivation + Herbicides + Com_Mul + 
                  data=c)
 summary(mgmt3)
 Anova(mgmt3)
-#Herbicides   4.8742  1    0.02726 *
-  
-ggplot(c, aes(x=Herbicides, y=Firmness, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher firmness wihtout herbicides, higher in con 
 
 #Maturity Index 
 mgmt4 <- glmmTMB(maturity.index ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
@@ -897,196 +867,59 @@ mgmt4 <- glmmTMB(maturity.index ~ orchard.type + Cultivation + Herbicides + Com_
                  data=c)
 summary(mgmt4)
 Anova(mgmt4)
-#Herbicides   20.4531  1  6.111e-06 ***
-#orchard.type 20.6444  1  5.530e-06 ***
-#Acres         3.4818  1   0.062046 .  
-
-
-ggplot(c, aes(x=Herbicides, y=maturity.index, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#organic orchards that used herbicides had higher maturity values 
-
-
-ggplot(c, aes(x=Acres, y=maturity.index, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#lower maturity in smaller acreage for conventional but increases past organic at higher 
-
-ggplot(c, aes(x=name, y=maturity.index)) + 
-  geom_bar(stat = "identity")
-
-
 
 #Q3-B: Fruit Chemistry----------------------------------------------------------
-#Total Phenolics
-SkinD <- c[-c(17), ]
+###Removing Row 17 from analysis because orchard did not fill out this portion of survey data
+SkinD <- SkinD[-c(17), ]
+PulpD <- PulpD[-c(17), ]
+SeedD <- SeedD[-c(17), ]
 
-#Skin 
+###Skin Total Phenolics###
 mgmt.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                      Weed_Mats + Cover_Crops + Acres + (1|site.code), 
                    data=SkinD, family=beta_family(link="logit"))
 summary(mgmt.sk)
 Anova(mgmt.sk)
-#Herbicides   14.5890  1  0.0001337 ***
-#Weed_Mats     3.1533  1  0.0757759 .  
-#orchard.type  5.3281  1  0.0209846 *  
 
-
-ggplot(SkinD, aes(x=Herbicides, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher total phen in herbicides, higher in organic 
-ggplot(SkinD, aes(x=Weed_Mats, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#only coventional used weed_mats and was higehr 
-
-
-#Pulp 
+###Pulp Total Phenolics###
 mgmt.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                    data=PulpD, family=beta_family(link="logit"))
 summary(mgmt.pu)
 Anova(mgmt.pu)
-#orchard.type 4.7614  1   0.029106 * 
-#Cultivation  6.7080  1   0.009598 **
-#Cover_Crops  7.1191  1   0.007627 **
-  
-ggplot(PulpD, aes(x=Cultivation, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in conventional with and higher in organic without without 
-
-ggplot(PulpD, aes(x=Cover_Crops, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher total phen when using cover crops 
 
 
-#Seed
+###Seed Total Phenolics###
 mgmt.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                      Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                    data=SeedD, family=beta_family(link="logit"))
 summary(mgmt.se)
 Anova(mgmt.se)
-#Cover_Crops    8.7445  1   0.003105 ** 
-#Acres          8.4539  1   0.003643 ** 
-#orchard.type  57.0345  1  4.282e-14 ***
-  
-ggplot(SeedD, aes(x=Cover_Crops, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in conventional, with and without 
 
-ggplot(SeedD, aes(x=Acres, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#lowers in conventional, increases in organic 
-
-
-
-#Phenolics Richness 
-#Skin 
+###Skin Phenolic Richness### 
 mgmt.pr.sk <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                         Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                       data=SkinD)
 summary(mgmt.pr.sk)
 Anova(mgmt.pr.sk)
-#orchard.type 10.9965  1  0.0009128 ***
-#Herbicides   20.6498  1  5.514e-06 ***
-#Mowing        3.2551  1  0.0712025 .  
-#Weed_Mats    12.2388  1  0.0004681 ***
-#Cover_Crops   3.9363  1  0.0472553 *  
-#Acres         6.5262  1  0.0106297 *  
-
-ggplot(SkinD, aes(x=Herbicides, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in organic that used, lower when not sued 
 
 
-ggplot(SkinD, aes(x=Weed_Mats, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#no organic reported using weed mats, higehr in organic when not used 
-
-ggplot(SkinD, aes(x=Cover_Crops, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in organic not using cover crps
-
-ggplot(SkinD, aes(x=Acres, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#decreased as acreage increased 
-
-
-#Pulp 
+###Pulp Phenolic Richness### 
 mgmt.pr.pu <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                         Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                       data=PulpD)
 summary(mgmt.pr.pu)
 Anova(mgmt.pr.pu)
-#Cultivation   13.5405  1  0.0002335 ***
-#Com_Mul        6.6978  1  0.0096531 ** 
-  
-ggplot(PulpD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in roanic not using it, higher in conventoanl using it 
 
-
-ggplot(PulpD, aes(x=Com_Mul, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higehr in conventional not using, highe rin organic using
-
-#Seed
+###Seed Phenolic Richness### 
 mgmt.pr.se <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
                         Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
                       data=SeedD)
 summary(mgmt.pr.se)
 Anova(mgmt.pr.se)
-#orchard.type  6.3516  1   0.011728 *  
-#Cultivation   8.5015  1   0.003548 ** 
-#Herbicides    8.6565  1   0.003259 ** 
-#Mowing        4.6069  1   0.031844 *  
-#Weed_Mats     4.0724  1   0.043590 *  
-#Cover_Crops   5.3724  1   0.020458 *  
-#Acres         5.7112  1   0.016857 * 
 
 
-ggplot(SeedD, aes(x=Cultivation, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher values when not used, higher in organic
-
-ggplot(SeedD, aes(x=Herbicides, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in conventional when not used, higher in organic when used
-
-ggplot(SeedD, aes(x=Mowing, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in conventional when used, not ysed not reported for conventional 
-
-ggplot(SeedD, aes(x=Weed_Mats, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#higher in conventional when not used 
-
-ggplot(SeedD, aes(x=Cover_Crops, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_boxplot()
-#lower in organic when used, higher in conventional when not sued 
-
-ggplot(SeedD, aes(x=Acres, y=PhenRich, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#starts higher in coventional and decrease oast organic, both decrease 
-
+#Plots Section--------------------------------------------------------------------------
 #Physical Traits and Management System Plot---------------------------
 #SSC
 ag1= ggplot(TreeLat, aes(x=orchard.type, y=SSC, color=orchard.type)) +
@@ -1233,7 +1066,7 @@ ggarrange(sk.pr.ag, sk.tp.ag, pu.pr.ag,
 ggsave("chemmgmt.png", width=10, height=16, units="cm", dpi=600)
 
 
-#Q1-A: Physical Traits over Latitude-------------------------------------------- 
+#Physical Traits over Latitude-------------------------------------------- 
 #SSC
 ag1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
   geom_point(position=position_jitterdodge(jitter.width=.2))+
@@ -1354,65 +1187,208 @@ otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhen/1000, color = orchard.type))
 ggarrange(otp, ctp, opr, cpr ,nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
 ggsave("PRTP.png", width=20, height=16, units="cm", dpi=600)
 
-#mgmt practices-----------------------------------------------------------------
+#Management practices Plots-----------------------------------------------------------------
 
-#physical
+#SSC
 sxh = ggplot(c, aes(x = Herbicides, y = SSC, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
-  ylab("CSI Value") +
+  ylab("SSC") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
 
 sxh <- sxh + guides(color = "none")
 
+#Average Weight
 axc = ggplot(c, aes(x = Cultivation, y = avgwgt, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
     ylab("Average Weight (g)") +
   xlab("Cultivation") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
 
 axc <- axc + guides(color = "none")
 
-
+#Firmness
 fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
 ylab("Firmness (N)") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
 
 fxh <- fxh + guides(color = "none")
 
+#Maturity Index 
 mxh = ggplot(c, aes(x = Herbicides, y = maturity.index, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
   ylab("CSI Value") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
 
 mxh <- mxh + guides(color = "none")
 
-
-#chemical 
-stph = ggplot(SkinD, aes(x = Herbicides, y = TotalPhen/1000, fill = orchard.type)) +
+#Skin Total Phenolics 
+stphxh = ggplot(SkinD, aes(x = Herbicides, y = TotalPhen/1000, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
   ylab("Skin Total Phenolics (ug/g)") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
 
-mxh <- mxh + guides(color = "none")
+stphxh <- stphxh + guides(color = "none")
+
+stpxwm = ggplot(SkinD, aes(x = Weed_Mats, y = TotalPhen/1000, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Skin Total Phenolics (ug/g)") +
+  xlab("Weed Mats") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+stpxwm <- stpxwm + guides(color = "none")
+
+#Pulp Total Phenolics 
+pxc = ggplot(PulpD, aes(x = Cultivation, y = TotalPhen/1000, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Pulp Total Phenolics (ug/g)") +
+  xlab("Cultivation") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+pxc <- pxc + guides(color = "none")
+
+pxcc = ggplot(PulpD, aes(x = Cover_Crops, y = TotalPhen/1000, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Pulp Total Phenolics (ug/g)") +
+  xlab("Cover Crops") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+pxcc <- pxcc + guides(color = "none")
+
+#Seed Total Phenolics 
+sxc = ggplot(SeedD, aes(x = Cover_Crops, y = TotalPhen/1000, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Total Phenolics (ug/g)") +
+  xlab("Cover Crops") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sxc <- sxc + guides(color = "none")
+
+#Skin Phenolic Richness
+skprxh = ggplot(SkinD, aes(x = Herbicides, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Skin Phenolic Richness") +
+  xlab("Herbicides") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+skprxh <- skprxh + guides(color = "none")
+
+skprxm = ggplot(SkinD, aes(x = Mowing, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Skin Phenolic Richness") +
+  xlab("Mowing") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+skprxm <- skprxm + guides(color = "none")
+
+skprxwm = ggplot(SkinD, aes(x = Weed_Mats, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Skin Phenolic Richness") +
+  xlab("Weed Mats") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+skprxwm <- skprxwm + guides(color = "none")
+
+skprxcc = ggplot(SkinD, aes(x = Cover_Crops, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Skin Phenolic Richness") +
+  xlab("Cover Crops") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+skprxcc <- skprxcc + guides(color = "none")
+
+#Pulp Phenolic Richness
+pprc = ggplot(PulpD, aes(x = Cultivation, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Pulp Phenolic Richness") +
+  xlab("Cultivation") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+pprc <- pprc + guides(color = "none")
+
+pprcm = ggplot(PulpD, aes(x = Com_Mul, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Pulp Phenolic Richness") +
+  xlab("Compost/Mulching") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+pprcm <- pprcm + guides(color = "none")
+
+#Seed Phenolic Richness
+sdprc = ggplot(SeedD, aes(x = Cultivation, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Phenolic Richness") +
+  xlab("Cultivation") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sdprc <- sdprc + guides(color = "none")
 
 
-#Herbicides   14.5890  1  0.0001337 ***
-#Weed_Mats     3.1533  1  0.0757759 .  
+sdprh = ggplot(SeedD, aes(x = Herbicides, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Phenolic Richness") +
+  xlab("Herbicides") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sdprh <- sdprh + guides(color = "none")
+
+sdprm = ggplot(SeedD, aes(x = Mowing, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Phenolic Richness") +
+  xlab("Mowing") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sdprm <- sdprm + guides(color = "none")
+
+sdprwm = ggplot(SeedD, aes(x = Weed_Mats, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Phenolic Richness") +
+  xlab("Weed Mats") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sdprwm <- sdprwm + guides(color = "none")
+
+sdprcc = ggplot(SeedD, aes(x = Cover_Crops, y = PhenRich, fill = orchard.type)) +
+  geom_bar(position= "dodge", stat="identity")+
+  ylab("Seed Phenolic Richness") +
+  xlab("Cover Crops Mats") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+
+sdprcc <- sdprcc + guides(color = "none")
 
 
 
-ggarrange(otp, ctp, opr, cpr ,nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
-ggsave("PRTP.png", width=20, height=16, units="cm", dpi=600)
+
+ggarrange(sxh,axc, fxh, mxh,stphxh, stpxwm, pxc, pxcc, sxc, skprxh, skprxm, skprxwm, 
+skprxcc, pprc,pprcm, sdprc, sdprh, sdprm, sdprwm, sdprcc
+          ,nrow = 4, ncol = 5, labels = c("A", "B", "C", "D", "E", "F", "G",
+                                          "H", "I", "J", "K", "L", "M", "N", "O",
+                                          "P", "Q", "R", "S", "T"))
+ggsave("mgmt_prac.png", width=20, height=16, units="cm", dpi=600)
 
 
 #Map Plot----------------------------------------------------------------------
