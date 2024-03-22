@@ -17,7 +17,8 @@ library(corrplot)#plotting correlation matrix
 library(readr)
 library(GGally)
 library(emmeans) 
-library(gridExtra) #multiplotting 
+library(ggpubr) #multiplotting 
+
 
 
 #Read Data Organization and Restructuring---------------------------------------
@@ -159,15 +160,7 @@ Anova(Lat1)
 #Latitude              18.2814  1  1.906e-05 ***
 #orchard.type:Latitude  0.2196  1     0.6393  
 
-## Calculate the effect size
-ems <- emmeans(Lat1, c("Latitude","orchard.type"), infer = c(T, T))
-eff_size(ems, sigma = sigma(Lat1), edf = df.residual(Lat1))
-plot(ems)
-
-ems <- emmeans(Lat1, ~ orchard.type | Latitude)
-ems
-#high level of uncertainty 
-
+aggregate(SSC~Latitude, data=TreeLat, FUN= mean)
 
 #Firmness 
 Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
@@ -177,15 +170,9 @@ Anova(Lat2)
 #Latitude              34.5700  1  4.112e-09 ***
 #orchard.type:Latitude  0.9233  1     0.3366 
 
-ems <- emmeans(Lat2, c("Latitude","orchard.type"), infer = c(T, T))
-eff_size(ems, sigma = sigma(Lat2), edf = df.residual(Lat2))
-plot(ems)
+aggregate(Firmness~Latitude, data=TreeLat, FUN= mean)
 
 
-## Calculate the effect size
-ems <- emmeans(Lat2, c("Latitude","orchard.type"), infer = c(T, T))
-eff_size(ems, sigma = sigma(Lat2), edf = df.residual(Lat2))
-plot(ems)
 
 #Average Weight 
 Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
@@ -195,11 +182,6 @@ Anova(Lat3)
 #orchard.type          0.1535  1   0.695206   
 #Latitude              0.3713  1   0.542288   
 #orchard.type:Latitude 9.7210  1   0.001822 **
-
-ems <- emmeans(Lat3, c("Latitude","orchard.type"), infer = c(T, T))
-eff_size(ems, sigma = sigma(Lat3), edf = df.residual(Lat3))
-plot(ems)
-
 
 
 #Maturity Index 
@@ -211,9 +193,7 @@ Anova(Lat4)
 #Latitude              3.8790  1    0.04889 *
 #orchard.type:Latitude 0.9598  1    0.32724 
 
-emmeans(Lat4, maturity.index ~ orchard.type | Latitude)
-
-
+aggregate(maturity.index~Latitude, data=TreeLat, FUN= mean)
 
 
 ###Investigating Latitude and Average weight 
@@ -221,23 +201,23 @@ emmeans(Lat4, maturity.index ~ orchard.type | Latitude)
 Tree_low <- filter(TreeLat, Latitude<42)
 Tree_high <- filter(TreeLat, Latitude>42)
 
-#Low
+#Low Latitude Sites 
 avg_low<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_low)
 summary(avg_low)
 Anova(avg_low) 
 #orchard.type 2.5824  1     0.1081
 
-plot(avgwgt ~ Latitude, data=Tree_low)
+## Calculate the effect size
+emmeans(avg_low,pairwise~orchard.type, type="response")
 
+#High Latitude Sites 
 avg_hgh<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_high)
 summary(avg_hgh)
 Anova(avg_hgh)
 #orchard.type 3.6794  1    0.05509 .
 
-plot(avgwgt ~ Latitude, data=Tree_high)
-
-emmeans(avg_hgh, avgwgt ~ orchard.type | time)
-
+## Calculate the effect size
+emmeans(avg_hgh,pairwise~orchard.type, type="response")
 
 
 #Q1-B: Fruit Chemistry-------------------------------------------------------------
@@ -252,6 +232,7 @@ Anova(tp1)
 #orchard.type                   4.4968  1    0.03396 *  
 #Tissue                       278.1257  2    < 2e-16 ***
 #orchard.type:Tissue            8.3481  2    0.01539 *  
+
 
 #strong effects of tissue and interaction between tissue and orchard type
 #splitting by tissue
@@ -278,11 +259,13 @@ summary(tp.se)
 Anova(tp.se)
 #orchard.type          8.0185  1    0.00463 **
 
-#visualize this 
-ggplot(d.se, aes(x=Latitude, y=TotalPhen, color=orchard.type))+
-  geom_smooth(method = "lm") +
-  geom_point()
-#higher in conventional 
+
+
+#aggregate for pecrcent difference calculation 
+aggregate(TotalPhen~ orchard.type, data=d.se, FUN= mean)
+seed_tp_perdif= (82895.09-54755.99)/((82895.09+54755.99)/2)*100
+seed_tp_perdif
+
 
 
 #phenolics richness
@@ -311,6 +294,9 @@ pr.se <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), dat
 summary(pr.se)
 Anova(pr.se)
 #Latitude              6.0320  1    0.01405 *
+
+aggregate(PhenRich~ Latitude, data=d.se, FUN= mean)
+
 
 
 #Q1-C: Which compounds distinguish fruits based on management systems?----------
@@ -841,32 +827,70 @@ view(c)
 
 #SSC
 mgmt1 <- glmmTMB(SSC ~ orchard.type+ Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+Cover_Crops  + (1|site.code), 
                  data=c)
 summary(mgmt1)
 Anova(mgmt1)
+#orchard.type  1.4987  1   0.220878    
+#Cultivation   1.3314  1   0.248552    
+#Herbicides   43.5845  1   4.06e-11 ***
+#Com_Mul       3.6099  1   0.057437 .  
+#Mowing       10.4410  1   0.001232 ** 
+#Cover_Crops   5.6031  1   0.017929 * 
+  
+## Calculate the effect size
+emmeans(mgmt1,pairwise~Herbicides, type="response")
+#0.941 % higher at sites using herbicides 
+emmeans(mgmt1,pairwise~Mowing, type="response")
+#1.26 higher using mowing
+emmeans(mgmt1,pairwise~Cover_Crops, type="response")
+#1.43 not using 
+
 
 #Average Weight
-mgmt2 <- glmmTMB(avgwgt ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
-                 data=c)
+mgmt2 <- glmmTMB(avgwgt ~ orchard.type + Cultivation + Herbicides + Com_Mul + 
+Mowing +Cover_Crops + (1|site.code), data=c)
 summary(mgmt2)
 Anova(mgmt2)
+#Mowing       7.4314  1    0.00641 **
 
+## Calculate the effect size
+emmeans(mgmt2,pairwise~Mowing, type="response")
+#37.8  higher in orchard using Mowing 
 
 #Firmness 
 mgmt3 <- glmmTMB(Firmness ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+Cover_Crops + (1|site.code), 
                  data=c)
 summary(mgmt3)
 Anova(mgmt3)
+#Herbicides   6.8822  1   0.008706 **
+
+## Calculate the effect size
+emmeans(mgmt3,pairwise~Herbicides, type="response")
+# 4.15 N difference in orchards using not herbicides 
+
 
 #Maturity Index 
 mgmt4 <- glmmTMB(maturity.index ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                   Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+Cover_Crops + (1|site.code), 
                  data=c)
 summary(mgmt4)
 Anova(mgmt4)
+#orchard.type  8.5457  1   0.003463 **
+#Cultivation   5.7981  1   0.016043 * 
+#Herbicides   10.1553  1   0.001439 **
+#Cover_Crops   6.5336  1   0.010586 * 
+
+emmeans(mgmt4,pairwise~Cultivation|orchard.type, type="response")
+#0.326  not using
+
+emmeans(mgmt4,pairwise~Herbicides|orchard.type, type="response")
+#0.211 higher when using 
+
+emmeans(mgmt4,pairwise~Cover_Crops|orchard.type, type="response")
+#0.656  higher when using 
+
 
 #Q3-B: Fruit Chemistry----------------------------------------------------------
 ###Removing Row 17 from analysis because orchard did not fill out this portion of survey data
@@ -874,49 +898,103 @@ SkinD <- SkinD[-c(17), ]
 PulpD <- PulpD[-c(17), ]
 SeedD <- SeedD[-c(17), ]
 
+#Dropping outputs from Weed_mats (only conventional), firemgmt (1 orchard), and acres 
+
 ###Skin Total Phenolics###
-mgmt.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                     Weed_Mats + Cover_Crops + Acres + (1|site.code), 
+mgmt.sk <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing 
+                   + Cover_Crops + (1|site.code), 
                    data=SkinD, family=beta_family(link="logit"))
 summary(mgmt.sk)
 Anova(mgmt.sk)
+#orchard.type  4.5036  1   0.033824 *  
+#Herbicides   11.6646  1   0.000637 ***
+  
+## Calculate the effect size
+emmeans(mgmt.sk,pairwise~Herbicides|orchard.type, type="response", transform = "logit")
+#28987 /1000 more in conventional using herbicides 
+#22072 /1000 more in organic using herbicides 
+
 
 ###Pulp Total Phenolics###
 mgmt.pu <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                     Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+ Cover_Crops + (1|site.code), 
                    data=PulpD, family=beta_family(link="logit"))
 summary(mgmt.pu)
 Anova(mgmt.pu)
+#orchard.type 7.1246  1   0.007603 **
+#Cultivation  4.9899  1   0.025495 * 
+#Cover_Crops  6.9271  1   0.008490 **
+
+#Indv Model 
+mgmgt_putpcul<- glmmTMB(TotalPhen ~ Cultivation*orchard.type+ (1|site.code), data=PulpD)
+## Calculate the effect size
+emmeans(mgmt.pu,pairwise~Cultivation|orchard.type, type="response")
+#6280 /1000 more in orgnaic orchards not usin 
+#1570 /1000 more in conventional not using 
+
+#Indv Model 
+mgmgt_putpcc<- glmmTMB(TotalPhen ~ Cover_Crops*orchard.type+ (1|site.code), data=PulpD)
+## Calculate the effect size
+emmeans(mgmgt_putpcc,pairwise~Cover_Crops|orchard.type, type="response")
+#4208 /1000 more in conevntional orchards using cc 
+#1563 /more in organinc using 
+
 
 
 ###Seed Total Phenolics###
 mgmt.se <- glmmTMB((TotalPhen/1000000)+0.0001 ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                     Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+ Cover_Crops + (1|site.code), 
                    data=SeedD, family=beta_family(link="logit"))
 summary(mgmt.se)
 Anova(mgmt.se)
+#orchard.type 11.5011  1  0.0006955 ***
+#Com_Mul       4.9692  1  0.0258028 *  
+
+
+
 
 ###Skin Phenolic Richness### 
 mgmt.pr.sk <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+Cover_Crops + (1|site.code), 
                       data=SkinD)
 summary(mgmt.pr.sk)
 Anova(mgmt.pr.sk)
+#Herbicides   6.5417  1    0.01054 *
 
+## Calculate the effect size
+emmeans(mgmt.pr.sk,pairwise~Herbicides, type="response")
+#2.53   hgher when using herbicides  
 
 ###Pulp Phenolic Richness### 
 mgmt.pr.pu <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+                        Cover_Crops + (1|site.code), 
                       data=PulpD)
 summary(mgmt.pr.pu)
 Anova(mgmt.pr.pu)
+#Com_Mul      4.4402  1    0.03510 *
+
+## Calculate the effect size
+emmeans(mgmt.pr.pu,pairwise~Com_Mul, type="response")
+#1.83    hgher when using Com_Mul
+
 
 ###Seed Phenolic Richness### 
 mgmt.pr.se <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-                        Weed_Mats + Cover_Crops + Fire_Mgmt + Acres + (1|site.code), 
+Cover_Crops + (1|site.code), 
                       data=SeedD)
 summary(mgmt.pr.se)
 Anova(mgmt.pr.se)
+#orchard.type 6.3711  1   0.011599 * 
+#Com_Mul      9.2608  1   0.002341 **
+#Cover_Crops  5.5185  1   0.018816 * 
+  
+## Calculate the effect size
+emmeans(mgmt.pr.se,pairwise~Cover_Crops|orchard.type, type="response")
+#3.57  not org using with both 
+
+emmeans(mgmt.pr.se,pairwise~Com_Mul|orchard.type, type="response")
+#3.88 when not ised in both
+
 
 
 #Plots Section--------------------------------------------------------------------------
@@ -973,14 +1051,8 @@ ag4= ggplot(TreeLat, aes(x=orchard.type, y=maturity.index, color=orchard.type)) 
 
 ag4 <- ag4 + guides(color = "none")
 
-install.packages("ggpubr")
-library(ggpubr)
-
 ggarrange(ag1, ag2, ag3, ag4,nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
 ggsave("physlat.png", width=10, height=16, units="cm", dpi=600)
-
-
-
 
 #Total Phenolics & PhenRich Plot by Mgmt--------------------------------------------------------------------------- 
 #Skin total Phenolics 
@@ -1190,54 +1262,101 @@ ggsave("PRTP.png", width=20, height=16, units="cm", dpi=600)
 #Management practices Plots-----------------------------------------------------------------
 
 #SSC
-sxh = ggplot(c, aes(x = Herbicides, y = SSC, fill = orchard.type)) +
-  geom_bar(position= "dodge", stat="identity")+
-  ylab("SSC") +
+sxh = ggplot(c, aes(x = Herbicides, y = SSC, fill = Herbicides)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+
+   ylab("SSC") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
+  guides(fill = FALSE)  
 
-sxh <- sxh + guides(color = "none")
+sxm = ggplot(c, aes(x = Mowing, y = SSC, fill = Mowing)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+
+  ylab("SSC") +
+  xlab("Mowing") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
+  guides(fill = FALSE)  
+
+sxcc = ggplot(c, aes(x = Cover_Crops, y = SSC, fill = Cover_Crops)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+
+  ylab("SSC") +
+  xlab("Cover Crops") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
+  guides(fill = FALSE)  
 
 #Average Weight
-axc = ggplot(c, aes(x = Cultivation, y = avgwgt, fill = orchard.type)) +
-  geom_bar(position= "dodge", stat="identity")+
-    ylab("Average Weight (g)") +
-  xlab("Cultivation") +
+axc = ggplot(c, aes(x = Com_Mul, y = avgwgt, fill = Com_Mul)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+    ylab("Average Weight (g)") +
+  xlab("Compost/Mulching") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
-
-axc <- axc + guides(color = "none")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
 
 #Firmness
-fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = orchard.type)) +
-  geom_bar(position= "dodge", stat="identity")+
-ylab("Firmness (N)") +
+fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = Herbicides)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+ylab("Firmness (N)") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
-
-fxh <- fxh + guides(color = "none")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
 
 #Maturity Index 
-mxh = ggplot(c, aes(x = Herbicides, y = maturity.index, fill = orchard.type)) +
-  geom_bar(position= "dodge", stat="identity")+
-  ylab("CSI Value") +
+mxh = ggplot(c, aes(x = Herbicides, y = maturity.index, fill = Herbicides)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
 
-mxh <- mxh + guides(color = "none")
+mxcul = ggplot(c, aes(x = Cultivation, y = maturity.index, fill = Cultivation)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
+  xlab("Cultivation") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
+
+mxcc = ggplot(c, aes(x = Cover_Crops, y = maturity.index, fill = Cover_Crops)) +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
+  xlab("Cover Crops") +
+  theme_classic() +
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
+
+ggarrange(mxh, mxcul, mxcc, axc, fxh, sxh, sxm, sxcc
+          ,nrow = 4, ncol = 2, labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
+ggsave("mgmt_prac.png", width=16, height=20, units="cm", dpi=600)
+
+
+
 
 #Skin Total Phenolics 
 stphxh = ggplot(SkinD, aes(x = Herbicides, y = TotalPhen/1000, fill = orchard.type)) +
-  geom_bar(position= "dodge", stat="identity")+
-  ylab("Skin Total Phenolics (ug/g)") +
+  geom_boxplot(outlier.shape=NA)+
+  geom_point(position=position_jitterdodge(jitter.width=.2))+
+  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +  ylab("Skin Total Phenolics (ug/g)") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")
+  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  guides(fill = FALSE)  
 
-stphxh <- stphxh + guides(color = "none")
 
 stpxwm = ggplot(SkinD, aes(x = Weed_Mats, y = TotalPhen/1000, fill = orchard.type)) +
   geom_bar(position= "dodge", stat="identity")+
@@ -1383,11 +1502,11 @@ sdprcc <- sdprcc + guides(color = "none")
 
 
 
-ggarrange(sxh,axc, fxh, mxh,stphxh, stpxwm, pxc, pxcc, sxc, skprxh, skprxm, skprxwm, 
+ggarrange(stphxh, stpxwm, pxc, pxcc, sxc, skprxh, skprxm, skprxwm, 
 skprxcc, pprc,pprcm, sdprc, sdprh, sdprm, sdprwm, sdprcc
-          ,nrow = 4, ncol = 5, labels = c("A", "B", "C", "D", "E", "F", "G",
+          ,nrow = 4, ncol = 4, labels = c("A", "B", "C", "D", "E", "F", "G",
                                           "H", "I", "J", "K", "L", "M", "N", "O",
-                                          "P", "Q", "R", "S", "T"))
+                                          "P"))
 ggsave("mgmt_prac.png", width=20, height=16, units="cm", dpi=600)
 
 
