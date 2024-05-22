@@ -1196,185 +1196,20 @@ c1 <- data.frame(
   Orchard = c$orchard.num,
   Latitude = c$Latitude,
   Longitude = c$Longitude,
-  Otype = c$orchard.type
-)
+  Otype = c$orchard.type)
 
-c_transformed <- usmap_transform(
-  c1,
-  input_names = c("Longitude", "Latitude"),
-  output_names = c("x", "y"))
+#transform the points 
+us_map <- usmap_transform(data = c1, input_names = c("Longitude", "Latitude"))
 
-c_transformed <- c_transformed %>%
-  mutate(Orchard = ifelse(duplicated(select(c_transformed, "geometry")), "Both", as.character(Otype)))
+c2 <- data.frame(
+  Geometry = us_map$geometry)
 
+us_map <- plot_usmap(include = c("CA", "OR", "WA"))
 
-# Create the US map
-p1 <- plot_usmap(include = c("CA", "OR", "WA")) +
-  geom_point(data = c_transformed, aes(x = geometry, y = geometry, color = Otype), 
-             size = 3, 
-alpha = 0.7, position = position_jitter(width = 10, height = 10)) +
-  labs(
-    title = "          Participating Orchards",
-    caption = "                                 August 2022"
-  ) +
-  theme_bw() +
-  theme(
-    plot.title = element_text(size = 12, face = "bold"),
-    plot.subtitle = element_text(size = 12),
-    plot.caption = element_text(hjust = 0),
-    legend.position = "right",
-    legend.title = element_text(face = "bold"),
-    legend.text = element_text(size = 10),
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 12, face = "bold"),
-    panel.background = element_rect(fill = "white"),  # Set background color
-    panel.grid = element_blank(),                      # Remove grid lines
-    panel.grid.major = element_blank()                  # Remove major grid lines
-  ) +
-  scale_color_manual(values = c("darkgreen", "#9A607F", "#3EBCD2"), name = "Management System")+
-  scale_x_continuous(labels = c("-123°W", "-120°W", "-117°W", "-114°W", "-111°W"), expand = c(0, 0)) +  # Set breaks and labels for x-axis
-  scale_y_continuous(labels = c("34°N", "38°N", "42°N", "46°N"), expand = c(0, 0))    # Set breaks and labels for y-axis
-p1
+# Add your latitude and longitude points
+map_with_points <- us_map +
+  geom_point(data = c2, color = "red", size = 3)
 
-ggsave("output_plot.png", plot = p1, device = "png", bg = "transparent")
-
-
-
-
-
-
-#pca analysis plots-------------------------------------------------------------
-#firmness 
-f.pc1=ggplot(pc_clim_phys, aes(x=Firmness, y=PC1, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC1") +
-  xlab ("Firmness")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-f.pc1 <- f.pc1 + annotate("text", label = "a",
-                      size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-f.pc1 <- f.pc1 + guides(color = "none")
-
-f.pc2=ggplot(pc_clim_phys, aes(x=Firmness, y=PC2, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC2") +
-  xlab ("Firmness")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-f.pc2 <- f.pc2 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-f.pc2 <- f.pc2 + guides(color = "none")
-
-
-f.pc3=ggplot(pc_clim_phys, aes(x=Firmness, y=PC3, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC3") +
-  xlab ("Firmness")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-f.pc3 <- f.pc3 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-f.pc3 <- f.pc3 + guides(color = "none")
-
-#ssc
-s.pc1=ggplot(pc_clim_phys, aes(x=SSC, y=PC1, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC1") +
-  xlab ("SSC")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-s.pc1 <- s.pc1 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-s.pc1 <- s.pc1 + guides(color = "none")
-
-
-s.pc2=ggplot(pc_clim_phys, aes(x=SSC, y=PC2, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC2") +
-  xlab ("SSC")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-s.pc2 <- s.pc2 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-s.pc2 <- s.pc2 + guides(color = "none")
-
-#avgwgt
-a.pc2=ggplot(pc_clim_phys, aes(x=avgwgt, y=PC2, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC2") +
-  xlab ("Average Weight")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-a.pc2 <- a.pc2 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-#remove legend for multiplot
-a.pc2 <- a.pc2 + guides(color = "none")
-
-
-#maturity
-mat.pc1=ggplot(pc_clim_phys, aes(x=avgwgt, y=PC1, color=orchard.type)) +
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("PC1") +
-  xlab ("Average Weight")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-
-#add graph label for multiplot 
-mat.pc1 <- mat.pc1 + annotate("text", label = "a",
-                          size = 6, vjust = 1, hjust = 5)
-
-
-legend_plot <- ggplot(TreeLat, aes(x = 0, y = 0, color = orchard.type)) +
-  geom_point(alpha = 0) +  # This will add a dummy point with alpha = 0 (transparent)
-  theme_void() +  # This removes axis labels and ticks
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
-  
-
-
-
-
-# Create a jpg file to save the plots
-jpeg("pc-firm.jpg", width = 800, height = 800, units = "px", quality = 100)
-
-# Arrange and print the plots
-grid.arrange(f.pc1, f.pc2, f.pc3,s.pc1, s.pc2,a.pc2,mat.pc1, ncol = 2)
-
-# Close the jpg file
-dev.off()
-
-
-
-
-  
+print(map_with_points)
 
 
