@@ -19,8 +19,6 @@ library(GGally)
 library(emmeans) 
 library(ggpubr) #multiplotting 
 
-
-
 #Read Data Organization and Restructuring---------------------------------------
 #Read in Data sheets
 #Orchard Level Data (24 obs)
@@ -954,7 +952,7 @@ ctp = ggplot(ChemLat, aes(x=Latitude, y=TotalPhenTrans, color=Tissue)) +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")+
+  scale_color_manual(values=c("#104e8b", "#d2691e", "darkgreen"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
 guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
   theme(
@@ -971,7 +969,7 @@ cpr = ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F", "darkgreen"),name="Tissue")+
+  scale_color_manual(values=c("#104e8b", "#d2691e", "darkgreen"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))
   
 
@@ -1185,31 +1183,5 @@ ggarrange(stphxh, stpxwm, pxc, pxcc, prcm, secm,
           nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
 ggsave("mgmt_prac_chem.png", width=16, height=20, units="cm", dpi=600)
 
-
-#Map Plot----------------------------------------------------------------------
-install.packages("usmap")
-library(usmap)
-library(ggplot2)
-
-# Your data transformation code
-c1 <- data.frame(
-  Orchard = c$orchard.num,
-  Latitude = c$Latitude,
-  Longitude = c$Longitude,
-  Otype = c$orchard.type)
-
-#transform the points 
-us_map <- usmap_transform(data = c1, input_names = c("Longitude", "Latitude"))
-
-c2 <- data.frame(
-  Geometry = us_map$geometry)
-
-us_map <- plot_usmap(include = c("CA", "OR", "WA"))
-
-# Add your latitude and longitude points
-map_with_points <- us_map +
-  geom_point(data = c2, color = "red", size = 3)
-
-print(map_with_points)
 
 
