@@ -18,6 +18,7 @@ library(readr)
 library(GGally)
 library(emmeans) 
 library(ggpubr) #multiplotting 
+library(viridis) #color pallete 
 
 #Read Data Organization and Restructuring---------------------------------------
 #Read in Data sheets
@@ -226,7 +227,7 @@ summary(tp.se)
 Anova(tp.se)
 
 #calculate effect size
-emmeans(tp.se, pairwise~orchard.type)
+emmeans(tp.se, ~orchard.type, type="response")
 
 
 ###phenolics richness###
@@ -349,7 +350,37 @@ m.perm3 <- adonis2(d.comp.se~orchard.type*lat_cat, data=d.expl.se)
 m.perm3
 
 #Q1-C: Random Forest------------------------------------------------------------
-###Skin was dropped 
+#Management Sorting 
+#Skin 
+m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$orchard.type, importance=TRUE, 
+                         proximity=TRUE, oob.prox=TRUE, ntree=2000)
+m1.rf.sk$importance
+varImpPlot(m1.rf.sk)
+MDSplot(m1.rf.sk, d.expl.sk$orchard.type)
+
+m1.rf.b.sk <- Boruta(d.comp.sk,d.expl.sk$orchard.type)
+m1.rf.b.sk
+plot(m1.rf.b.sk,las = 2, cex.axis = 0.7)  
+
+getSelectedAttributes(m1.rf.b.sk) 
+attStats(m1.rf.b.sk)
+
+##Running MANOVAS (needs to be fixed)
+d.comp.sk.sel <- data.matrix(d.comp.sk[,getSelectedAttributes(m1.rf.b.sk)])
+m1.man.sk <-manova(d.comp.sk.sel ~ d.expl.sk$orchard.type)
+summary(m1.man.sk)  
+
+#follow-up ANOVAs for each individual compound
+summary.aov(m1.man.sk)  
+
+#some quick plots of all of them
+par(mfrow=c(3,3))
+for (i in 1:length(colnames(d.comp.sk.sel))){
+  d.temp=d.comp.sk.sel[,i]
+  plot(d.temp ~ d.expl.sk$orchard.type, ylab=colnames(d.comp.sk.sel)[i])
+}
+dev.off()
+
 
 ###PULP###
 m1.rf.pu <- randomForest(d.comp.pu,d.expl.pu$orchard.type, importance=TRUE, 
@@ -365,7 +396,7 @@ plot(m1.rf.b.pu,las = 2, cex.axis = 0.7)
 getSelectedAttributes(m1.rf.b.pu) 
 attStats(m1.rf.b.pu)
 
-##Running MANOVAS (needs to be fixed)
+##Running MANOVAS
 d.comp.pu.sel <- data.matrix(d.comp.pu[,getSelectedAttributes(m1.rf.b.pu)])
 m1.man.pu <-manova(d.comp.pu.sel ~ d.expl.pu$orchard.type)
 summary(m1.man.pu)  
@@ -413,7 +444,7 @@ dev.off()
 
 ###Random Forest for Latitude ###
 ###skin
-m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$lat_cat, d.expl.sk$orchard.type, importance=TRUE, 
+m1.rf.sk <- randomForest(d.comp.sk,d.expl.sk$lat_cat, importance=TRUE, 
                          proximity=TRUE, oob.prox=TRUE, ntree=2000)
 m1.rf.sk$importance
 varImpPlot(m1.rf.sk)
@@ -426,6 +457,8 @@ m1.rf.b.sk
 #plot 
 plot(m1.rf.b.sk,las = 2, cex.axis = 0.7)  
 getSelectedAttributes(m1.rf.b.sk) 
+attStats(m1.rf.b.sk)
+
 
 #performing MANOVA 
 d.comp.sk.sel <- data.matrix(d.comp.sk[,getSelectedAttributes(m1.rf.b.sk)])
@@ -666,9 +699,9 @@ summary(mgmt1)
 Anova(mgmt1)
 
 ## Calculate the effect size
-emmeans(mgmt1,pairwise~Herbicides, type="response")
-emmeans(mgmt1,pairwise~Mowing, type="response")
-emmeans(mgmt1,pairwise~Cover_Crops, type="response")
+emmeans(mgmt1,~ Herbicides   , type="response") 
+emmeans(mgmt1,~ Mowing   , type="response") 
+emmeans(mgmt1,~ Cover_Crops   , type="response") 
 
 
 #Average Weight
@@ -678,7 +711,7 @@ summary(mgmt2)
 Anova(mgmt2)
 
 ## Calculate the effect size
-emmeans(mgmt2,pairwise~Mowing, type="response")
+emmeans(mgmt2,~Mowing, type="response")
 
 #Firmness 
 mgmt3 <- glmmTMB(Firmness ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
@@ -688,7 +721,7 @@ summary(mgmt3)
 Anova(mgmt3)
 
 ## Calculate the effect size
-emmeans(mgmt3,pairwise~Herbicides, type="response")
+emmeans(mgmt3,~Herbicides, type="response")
 
 #Maturity Index 
 mgmt4 <- glmmTMB(maturity.index ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
@@ -698,9 +731,9 @@ summary(mgmt4)
 Anova(mgmt4)
 
 #calculate the effect size 
-emmeans(mgmt4,pairwise~Cultivation, type="response")
-emmeans(mgmt4,pairwise~Herbicides, type="response")
-emmeans(mgmt4,pairwise~Cover_Crops, type="response")
+emmeans(mgmt4,~Cultivation, type="response")
+emmeans(mgmt4,~Herbicides, type="response")
+emmeans(mgmt4,~Cover_Crops, type="response")
 
 #Q3-B: Fruit Chemistry----------------------------------------------------------
 ###Removing Row 17 from analysis because orchard did not fill out this portion of survey data
@@ -718,8 +751,8 @@ summary(mgmt.sk)
 Anova(mgmt.sk)
 
 ## Calculate the effect size
-emmeans(mgmt.sk, pairwise ~ Herbicides)
-emmeans(mgmt.sk, pairwise ~ Com_Mul)
+emmeans(mgmt.sk,  ~ Herbicides, type="response")
+emmeans(mgmt.sk,  ~ Com_Mul, type="response")
 
 ###Pulp Total Phenolics###
 mgmt.pu <- glmmTMB(TotalPhenTrans ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
@@ -729,8 +762,8 @@ summary(mgmt.pu)
 Anova(mgmt.pu)
 
 ## Calculate the effect size
-emmeans(mgmt.pu, pairwise ~ Cultivation)
-emmeans(mgmt.pu, pairwise ~ Cover_Crops)
+emmeans(mgmt.pu, ~ Cultivation, type="response")
+emmeans(mgmt.pu, ~ Cover_Crops,type="response")
 
 ###Seed Total Phenolics###
 mgmt.se <- glmmTMB(TotalPhenTrans ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
@@ -754,7 +787,7 @@ summary(mgmt.pr.pu)
 Anova(mgmt.pr.pu)
 
 ## Calculate the effect size
-emmeans(mgmt.pr.pu,pairwise~Cultivation)
+emmeans(mgmt.pr.pu,~Cultivation, type= "response")
 
 
 ###Seed Phenolic Richness### 
@@ -765,10 +798,12 @@ summary(mgmt.pr.se)
 Anova(mgmt.pr.se)
 
 ## Calculate the effect size
-emmeans(mgmt.pr.se,pairwise~Com_Mul)
+emmeans(mgmt.pr.se,~Com_Mul, type= "response")
 
 
 #Total Phenolics & PhenRich Plot by Mgmt--------------------------------------------------------------------------- 
+
+
 #Skin total Phenolics 
 sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
@@ -776,7 +811,7 @@ sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   ylab ("Skin Total Phenolics (ug/g)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 
 sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000000, color=orchard.type)) +
@@ -785,7 +820,7 @@ sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000000, color=orchard.typ
   ylab ("Skin Total Phenolics (pdw)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 
 #remove legend for multiplot
@@ -799,7 +834,7 @@ sk.pr.ag=ggplot(d.sk, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   ylab ("Skin Phenolic Richness") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 #remove legend for multiplot
 sk.pr.ag <- sk.pr.ag + guides(color = "none")
@@ -812,7 +847,7 @@ pu.tp.ag=ggplot(d.pu, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   ylab ("Pulp Total Phenolics (ug/g)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 #remove legend for multiplot
 pu.tp.ag <- pu.tp.ag + guides(color = "none")
@@ -825,7 +860,7 @@ pu.pr.ag=ggplot(d.pu, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   ylab ("Pulp Phenolic Richness") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 
 #remove legend for multiplot
@@ -839,7 +874,7 @@ se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type))
   ylab ("Seed Total Phenolics (ug/g)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 #remove legend for multiplot
 se.tp.ag <- se.tp.ag + guides(color = "none")
@@ -851,7 +886,7 @@ se.pr.ag=ggplot(d.se, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
   ylab ("Seed Phenolic Richness") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")
+  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
 
 #remove legend for multiplot
 se.pr.ag <- se.pr.ag + guides(color = "none")
@@ -866,11 +901,11 @@ ggsave("chemmgmt.png", width=10, height=16, units="cm", dpi=600)
 #SSC
 ag1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
   geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Soluble Sugar Content") +
+  ylab ("Soluble Sugar Content (°Bx)") +
   xlab ("Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
   theme(
@@ -887,7 +922,7 @@ ag2= ggplot(TreeLat, aes(x=Latitude, y=Firmness, color=orchard.type)) +
   xlab ("Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+ 
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+ 
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(color = "none")  
 
@@ -899,18 +934,18 @@ ag3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   xlab ("Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(color = "none") 
 
 #Maturity Index 
 ag4= ggplot(TreeLat, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("CSI Value") +
+  ylab ("Fruit Maturity (CSI) Value") +
   xlab ("Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+  
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+  
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(color = "none") 
 
@@ -922,7 +957,7 @@ ag5= ggplot(Tree_low, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   xlab ("Low Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
   scale_x_continuous(breaks = seq(34, 41, by = 2))+ 
   guides(color = "none") 
 
@@ -933,7 +968,7 @@ ag6= ggplot(Tree_high, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   xlab ("High Latitude")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
   scale_x_continuous(breaks = seq(42, 49, by = 2))+ 
 guides(color = "none") 
 
@@ -948,11 +983,11 @@ ggsave("fig1.png", width=20, height=24, units="cm", dpi=600)
 ###Q1-B Phenolic Richness by Tissue Type over Latitude 
 ctp = ggplot(ChemLat, aes(x=Latitude, y=TotalPhenTrans, color=Tissue)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Total Phenolics") +
+  ylab ("Total Phenolics (PPW)") +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
-  scale_color_manual(values=c("#104e8b", "#d2691e", "darkgreen"),name="Tissue")+
+  scale_color_manual(values=c("#22a884", "#fe9f6d", "#414487"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
 guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
   theme(
@@ -969,7 +1004,7 @@ cpr = ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
-  scale_color_manual(values=c("#104e8b", "#d2691e", "darkgreen"),name="Tissue")+
+  scale_color_manual(values=c("#22a884", "#fe9f6d", "#414487"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))
   
 
@@ -984,7 +1019,7 @@ opr = ggplot(ChemLat, aes(x = Tissue, y = PhenRich, color = orchard.type)) +
   ylab("Phenolic Richness") +
   xlab("") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")+
+  scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Tissue")+
   labs(color = "Tissue")+
   theme(
     legend.title = element_text(size = 12),
@@ -1000,10 +1035,10 @@ opr <- opr + guides(color = "none")
 otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(size= 1, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
-  ylab("Total Phenolics") +
+  ylab("Total Phenolics (PPW)") +
   xlab("") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Tissue")+
+  scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Tissue")+
   labs(color = "Tissue")+
   theme(
     legend.title = element_text(size = 12),
@@ -1016,10 +1051,10 @@ otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type))
 se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhenTrans, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Seed Total Phenolics") +
+  ylab ("Seed Total Phenolics (PPW)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="Management System")+
+  theme_classic() +  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
  guides(color = "none")
 
 
@@ -1030,7 +1065,7 @@ se.pr.l = ggplot(SeedD, aes(x=Latitude, y=PhenRich, color=orchard.type)) +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
-  scale_color_manual(values=c("#3EBCD2", "#9A607F"),name="mgmt")+
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="mgmt")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+
   guides(color = "none")
 
@@ -1040,119 +1075,130 @@ ggsave("fig2.png", width=20, height=24, units="cm", dpi=600)
 
 #Management practices Plots-----------------------------------------------------------------
 
-#SSC
-sxh = ggplot(c, aes(x = Herbicides, y = SSC, fill = Herbicides)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+
-   ylab("SSC") +
-  xlab("Herbicides") +
+###SCC###
+#creating data frame to plot all together 
+brix <- data.frame(c$Herbicides,c$Mowing, c$Cover_Crops, c$SSC )
+brix <- data.frame(
+  Treatment = rep(c("c.Herbicides", "c.Mowing", "c.Cover_Crops"), each = nrow(brix)),
+  Presence = c(brix$c.Herbicides, brix$c.Mowing, brix$c.Cover_Crops),
+  SSC = rep(brix$c.SSC, 3)
+)
+
+
+sscplot = ggplot(brix, aes(x = Treatment, y = SSC, fill = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("SSC (°Bx) ") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )+
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops            Herbicides              Mowing")+
   guides(fill = FALSE)  
 
-sxm = ggplot(c, aes(x = Mowing, y = SSC, fill = Mowing)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+
-  ylab("SSC") +
-  xlab("Mowing") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
-  guides(fill = FALSE)  
 
-sxcc = ggplot(c, aes(x = Cover_Crops, y = SSC, fill = Cover_Crops)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+
-  ylab("SSC") +
-  xlab("Cover Crops") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Herbicides")+  
-  guides(fill = FALSE)  
 
-#Average Weight
+
+###Average Weight###
 axc = ggplot(c, aes(x = Mowing, y = avgwgt, fill = Mowing)) +
   geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+    ylab("Average Weight (g)") +
+ylab("Average Weight (g)") +
   xlab("Mowing") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )+
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
   guides(fill = FALSE)  
+
+
 
 #Firmness
 fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = Herbicides)) +
   geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+ylab("Firmness (N)") +
+ ylab("Firmness (N)") +
   xlab("Herbicides") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
-  guides(fill = FALSE)  
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )+
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")
 
-#Maturity Index 
-mxh = ggplot(c, aes(x = Herbicides, y = maturity.index, fill = Herbicides)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
-  xlab("Herbicides") +
+#Maturity Index##
+#creating data frame to plot all together 
+mp <- data.frame(c$Herbicides,c$Cultivation, c$Cover_Crops, c$maturity.index)
+
+mp <- data.frame(
+  Treatment = rep(c("mp$c.Herbicides", "mp$c.Cultivation", 
+ "mp$c.Cover_Crops" ), each = nrow(mp)),
+  Presence = c(mp$c.Herbicides, mp$c.Cultivation, 
+               mp$c.Cover_Crops),
+  Mat = rep(mp$c.maturity.index, 3)
+)
+
+matplot = ggplot(mp, aes(x = Treatment, y = Mat, fill = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Fruit Maturity (CSI) Values") +
+  xlab("") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops           Cultivation           Herbicides") +
   guides(fill = FALSE)  
 
-mxcul = ggplot(c, aes(x = Cultivation, y = maturity.index, fill = Cultivation)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
-  xlab("Cultivation") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
-  guides(fill = FALSE)  
 
-mxcc = ggplot(c, aes(x = Cover_Crops, y = maturity.index, fill = Cover_Crops)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+  ylab("CSI Value") +
-  xlab("Cover Crops") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
-  guides(fill = FALSE)  
+#####Skin Total Phenolics##
 
-ggarrange(mxh, mxcul, mxcc, axc, fxh, sxh, sxm, sxcc
-          ,nrow = 4, ncol = 2, labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
-ggsave("mgmt_prac.png", width=16, height=20, units="cm", dpi=600)
+#creating data frame to plot all together 
+skintotalphen <- data.frame(SkinD$Herbicides,SkinD$Com_Mul, SkinD$TotalPhenTrans )
+skintotalphen <- data.frame(
+  Treatment = rep(c("skintotalphen$SkinD.Herbicides", "skintotalphen$SkinD.Com_Mul"), each = nrow(skintotalphen)),
+  Presence = c(skintotalphen$SkinD.Herbicides, skintotalphen$SkinD.Com_Mul),
+  TP = rep(skintotalphen$SkinD.TotalPhenTrans, 2)
+)
 
-
-
-
-#Skin Total Phenolics 
-stphxh = ggplot(SkinD, aes(x = Herbicides, y = TotalPhenTrans, fill = Herbicides)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_smooth(method=glm, se=FALSE)+ 
-  ylab("CSI Value") +  ylab("Skin Total Phenolics PDW") +
-  xlab("Herbicides") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
-  guides(fill = FALSE)  
-
-stpxwm = ggplot(SkinD, aes(x = Com_Mul, y = TotalPhenTrans, fill = Com_Mul)) +
-  geom_boxplot(outlier.shape=NA)+
+skinmgmt = ggplot(skintotalphen, aes(x = Treatment, y = TP, fill = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
   ylab("Skin Total Phenolics PDW") +
-  xlab("Weed Mats") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
-  guides(fill= FALSE)
-
-
-#Pulp Total Phenolics 
-pxc = ggplot(PulpD, aes(x = Cultivation, y = TotalPhenTrans, fill = Cultivation)) +
-  geom_boxplot(outlier.shape=NA)+
-  ylab("Pulp Total Phenolics PDW") +
-  xlab("Cultivation") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Compost/Mulch                            Herbicides")+
 guides(fill= FALSE)
 
-pxcc = ggplot(PulpD, aes(x = Cover_Crops, y = TotalPhenTrans, fill = Cover_Crops)) +
-  geom_boxplot(outlier.shape=NA)+
+
+#####Pulp Total Phenolics##
+
+#creating data frame to plot all together 
+pulptp <- data.frame(PulpD$Cultivation,PulpD$Cover_Crops, PulpD$TotalPhenTrans )
+pulptp <- data.frame(
+  Treatment = rep(c("pulptp$PulpD.Cultivation", "pulptp$PulpD.Cover_Crops"),
+                  each = nrow(pulptp)),
+  Presence = c(pulptp$PulpD.Cultivation, pulptp$PulpD.Cover_Crops),
+  TP = rep(pulptp$PulpD.TotalPhenTrans, 2)
+)
+
+ppmgmt = ggplot(pulptp, aes(x = Treatment, y = TP, fill = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
   ylab("Pulp Total Phenolics PDW") +
-  xlab("Cover Crops") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops                       Cultivation")+
   guides(fill= FALSE)
+
 
 
 
@@ -1162,7 +1208,11 @@ prcm = ggplot(PulpD, aes(x = Cultivation, y = TotalPhenTrans, fill = Cultivation
   ylab("Pulp Phenolic Richness") +
   xlab("Cultivation") +
   theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
   guides(fill= FALSE)
 
 #Seed Phenolic Richness
@@ -1170,18 +1220,104 @@ secm = ggplot(SeedD, aes(x = Com_Mul, y = TotalPhenTrans, fill = Com_Mul)) +
   geom_boxplot(outlier.shape=NA)+
   ylab("Seed Phenolic Richness") +
   xlab("Compost/Mulching") +
-  theme_classic() +
-  scale_color_manual(values = c("#3EBCD2", "#9A607F"), name = "Management System")+
+  theme_classic()+
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
   guides(fill= FALSE)
 
 
+ggarrange(sscplot,axc, matplot, fxh, skinmgmt,secm, ppmgmt, prcm
+          ,nrow = 4, ncol = 2, labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
+ggsave("mgmt_prac.png", width=16, height=20, units="cm", dpi=600)
+
+
+
+#Aggregating Data for tables---------------------------------------------------
+d.pu <- left_join(d.pu, Orchard[,c(2,40)], by="orchard.num")
+d.sk <- left_join(d.sk, Orchard[,c(2,40)], by="orchard.num")
+d.se <- left_join(d.se, Orchard[,c(2,40)], by="orchard.num")
+
+
+
+aggregate(d, A~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, B~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, C~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, E~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, F~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, G~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, H~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, PB1~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, gentistic_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, chlorogenic_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, syringic_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, U2~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, K~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, isoquercitin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, L~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, quercetin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, p_coumaric_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, cyanidin_Galactoside~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, caffeic_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, ePicatechin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, I~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, rutin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, reynoutrin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, quercitrin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, phloretin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, ferulic_acid~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, catechin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, PB2~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, U1~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, J~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, M~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, hyperin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, avicularin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, phloridzin~orchard.type+Tissue, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
 
 
 
 
-ggarrange(stphxh, stpxwm, pxc, pxcc, prcm, secm, 
-          nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
-ggsave("mgmt_prac_chem.png", width=16, height=20, units="cm", dpi=600)
 
+aggregate(d, A~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, B~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, C~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, E~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, F~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, G~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, H~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, PB1~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, gentistic_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, chlorogenic_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, syringic_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, U2~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, K~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, isoquercitin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, L~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, quercetin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, p_coumaric_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, cyanidin_Galactoside~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, caffeic_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, ePicatechin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, I~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, rutin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, reynoutrin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, quercitrin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, phloretin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, ferulic_acid~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, catechin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, PB2~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, U1~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, J~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, M~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, hyperin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, avicularin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+aggregate(d, phloridzin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
+
+
+
+aggregate(d.pu, caffeic_acid~lat_cat, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
 
 
