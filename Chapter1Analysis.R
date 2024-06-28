@@ -273,22 +273,35 @@ m.NMDS.sk
 
 plot(m.NMDS.sk, type="t")
 
+#Extract the site scores (coordinates of points in ordination space)
+nmds_scores <- vegan::scores(m.NMDS.sk, display = "sites")
 
-#for plotting, need to add columns that give values for 
-#colors and symbols we want in plot
-d.expl.sk$Color <- recode_factor(d.expl.sk$lat_cat,
-                                 low="red", high="blue")
-d.expl.sk$Symbol <- recode_factor(d.expl.sk$orchard.type,
-                                  Organic=2, Conventional=1)
-d.expl.sk$Symbol <- as.numeric(as.character(d.expl.sk$Symbol))
+# Convert to data frame
+data.scores <- as.data.frame(nmds_scores)
+data.scores$SampleID <- rownames(data.scores)
 
-d.expl.sk$lat_cat = as.factor(d.expl.sk$lat_cat)
+# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
+# Example: Creating metadata (replace with your actual metadata)
+metadata <- data.frame(SampleID = rownames(d.comp.sk),
+                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.sk))),
+                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.sk))))
 
+# Merge NMDS scores with metadata
+merged_data <- merge(data.scores, metadata, by = "SampleID")
 
-plot(m.NMDS.sk, type="n") #plots the ordination axes only
-points(m.NMDS.sk, pch=d.expl.sk$Symbol,
-       col=as.character(d.expl.sk$Color), cex = 0.8)     
-ordiellipse(m.NMDS.sk, d.expl.sk$Symbol, conf = 0.95)
+# Plot with ggplot2
+sk.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
+  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  labs(title = "Skin",
+       x = "NMDS Axis 1",
+       y = "NMDS Axis 2") +
+  theme(legend.position = "bottom")
+
+sk.nmds  <- sk.nmds  + guides(color = "none")
+
 
 #PERMANOVA can test whether the visualized differences are significant
 m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat, data=d.expl.sk)
@@ -299,55 +312,88 @@ m.perm1
 m.NMDS.pu <- metaMDS(d.comp.pu, distance = "bray", trymax=100, autotransform =FALSE)
 m.NMDS.pu
 
-plot(m.NMDS.pu, type="t")
 
-#for plotting, need to add columns that give values for 
-#colors and symbols we want in plot
-d.expl.pu$Color <- recode_factor(d.expl.pu$lat_cat,
-                                 low="red", high="blue")
-d.expl.pu$Symbol <- recode_factor(d.expl.pu$orchard.type,
-                                  Organic=2, Conventional=1)
-d.expl.pu$Symbol <- as.numeric(as.character(d.expl.pu$Symbol))
+#Extract the site scores (coordinates of points in ordination space)
+nmds_scores <- vegan::scores(m.NMDS.pu, display = "sites")
 
-d.expl.pu$lat_cat = as.factor(d.expl.pu$lat_cat)
+# Convert to data frame
+data.scores <- as.data.frame(nmds_scores)
+data.scores$SampleID <- rownames(data.scores)
+
+# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
+# Example: Creating metadata (replace with your actual metadata)
+metadata <- data.frame(SampleID = rownames(d.comp.pu),
+                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.pu))),
+                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.pu))))
+
+# Merge NMDS scores with metadata
+merged_data <- merge(data.scores, metadata, by = "SampleID")
+
+# Plot with ggplot2
+pu.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
+  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  labs(title = "Pulp",
+       x = " ",
+       y = " ") +
+  theme(legend.position = "bottom")
 
 
-NMDSpu=plot(m.NMDS.pu, type="n") #plots the ordination axes only
-points(m.NMDS.pu, pch=d.expl.pu$Symbol,
-       col=as.character(d.expl.pu$Color), cex = 0.8)     
-ordiellipse(m.NMDS.pu, d.expl.pu$Symbol, conf = 0.95)
-NMDSpu
+
 
 #PERMANOVA
 m.perm2 <- adonis2(d.comp.pu~orchard.type*lat_cat, data=d.expl.pu)
 m.perm2
 
+
 ###NMDS for Seed 
 m.NMDS.se <- metaMDS(d.comp.se, distance = "bray", trymax=100, autotransform =FALSE)
 m.NMDS.se
 
-plot(m.NMDS.se, type="t")
+nmds_scores <- vegan::scores(m.NMDS.se, display = "sites")
 
-#for plotting, need to add columns that give values for 
-#colors and symbols we want in plot
-d.expl.se$Color <- recode_factor(d.expl.se$orchard.type,
-                                 Organic="red", Conventional="blue")
-d.expl.se$Symbol <- recode_factor(d.expl.se$lat_cat,
-                                  high=2, low=1)
-d.expl.se$Symbol <- as.numeric(as.character(d.expl.se$Symbol))
+# Convert to data frame
+data.scores <- as.data.frame(nmds_scores)
+data.scores$SampleID <- rownames(data.scores)
 
-d.expl.se$lat_cat = as.factor(d.expl.se$lat_cat)
+# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
+# Example: Creating metadata (replace with your actual metadata)
+metadata <- data.frame(SampleID = rownames(d.comp.se),
+                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.se))),
+                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.se))))
+
+# Merge NMDS scores with metadata
+merged_data <- merge(data.scores, metadata, by = "SampleID")
+
+# Plot with ggplot2
+se.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
+  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  labs(title = "Seed",
+       x = " ",
+       y = " ") +
+  theme(legend.position = "bottom")
 
 
-NMDSse=plot(m.NMDS.se, type="n") #plots the ordination axes only
-points(m.NMDS.se, pch=d.expl.se$Symbol,
-       col=as.character(d.expl.se$Color), cex = 0.8)     
-ordiellipse(m.NMDS.se, d.expl.se$Symbol, conf = 0.95)
-NMDSse
+se.nmds  <- se.nmds  + guides(color = "none")
+
 
 #PERMANOVA
 m.perm3 <- adonis2(d.comp.se~orchard.type*lat_cat, data=d.expl.se)
 m.perm3
+
+
+
+##joining all for multiplot 
+ggarrange(sk.nmds, pu.nmds, se.nmds, nrow = 1, ncol = 3, labels = c("A", "B", "C"))
+ggsave("fig5.png", width=20, height=24, units="cm", dpi=600)
+
+
+
 
 #Q1-C: Random Forest------------------------------------------------------------
 #Management Sorting 
@@ -538,8 +584,10 @@ dev.off()
 #Q2: Which abiotic factors are the most important drivers of fruit quality?---------
 #Analysis: principle components analysis followed by PC regression with each variable
 #create a vector for all of the PCs
+
 p_clim <- dplyr::select(c,c("Prox.Water","elevation", 
                             "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
+
 
 #calculate principal components
 results <- prcomp(p_clim, scale = TRUE)
@@ -555,9 +603,18 @@ results$rotation
 head(results$x)
 
 #this plots the results of the PCAs into a two dimensional representation 
-biplot(results,choices=1:2, cex = 0.75,
-       col = c('darkblue', 'BLACK'),
-       scale = FALSE, xlabs = rep("*", 24))
+biplot(results,choices=1:2, cex = 0.001,
+       col = c(NA, "BLACK"),
+       scale = FALSE, xlabs = rep("*", 24), 
+       xlab = "Principal Component 1", 
+       ylab = "Principal Component 2", 
+       main = "PCA Biplot",
+       cex.lab = 1.2, 
+       cex.axis = 1.1, 
+       cex.main = 1.5,
+xlim = c(-2.1, 2.1), # Adjust these limits to zoom in on the x-axis
+ylim = c(-2.1, 2.1))
+
 
 
 
@@ -581,10 +638,10 @@ ggplot(df, aes(x=PC, y=var_explained)) +
 #bind the results to the data frame 
 pc_clim <- as.data.frame(results$x)
 
-#correlation matrix including Latitude and Longitude 
+#correlation matrix  
 p_clim1 <- dplyr::select(c,c("Prox.Water","elevation", 
 "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip",
-"Szn.UVI","Latitude", "Longitude"))
+"Szn.UVI"))
 
 #The first matrix shows the correlation coefficients between the variables  
 #the second matrix shows the corresponding p-values.
@@ -801,103 +858,8 @@ Anova(mgmt.pr.se)
 emmeans(mgmt.pr.se,~Com_Mul, type= "response")
 
 
-#Total Phenolics & PhenRich Plot by Mgmt--------------------------------------------------------------------------- 
-
-
-#Skin total Phenolics 
-sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Skin Total Phenolics (ug/g)") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-
-sk.tp.ag=ggplot(d.sk, aes(x=orchard.type, y=TotalPhen/1000000, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Skin Total Phenolics (pdw)") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-
-#remove legend for multiplot
-sk.tp.ag <- sk.tp.ag + guides(color = "none")
-
-
-#skin phenolic richness 
-sk.pr.ag=ggplot(d.sk, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Skin Phenolic Richness") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-#remove legend for multiplot
-sk.pr.ag <- sk.pr.ag + guides(color = "none")
-
-
-#pulp total phenolics 
-pu.tp.ag=ggplot(d.pu, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Pulp Total Phenolics (ug/g)") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-#remove legend for multiplot
-pu.tp.ag <- pu.tp.ag + guides(color = "none")
-
-
-#pulp phenolic richness 
-pu.pr.ag=ggplot(d.pu, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Pulp Phenolic Richness") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-
-#remove legend for multiplot
-pu.pr.ag <- pu.pr.ag + guides(color = "none")
-
-
-#seed total phenolics 
-se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhen/1000, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Seed Total Phenolics (ug/g)") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-#remove legend for multiplot
-se.tp.ag <- se.tp.ag + guides(color = "none")
-
-#seed phenolic richness 
-se.pr.ag=ggplot(d.se, aes(x=orchard.type, y=PhenRich, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Seed Phenolic Richness") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#440154", "#7ad151"),name="Management System")
-
-#remove legend for multiplot
-se.pr.ag <- se.pr.ag + guides(color = "none")
-
-
-ggarrange(sk.pr.ag, sk.tp.ag, pu.pr.ag,
-          pu.tp.ag, se.pr.ag,se.tp.ag,nrow = 2, ncol = 3, labels = c("A", "B", "C", "D", "E", "F"))
-ggsave("chemmgmt.png", width=10, height=16, units="cm", dpi=600)
-
-
-#Physical Traits over Latitude-------------------------------------------- 
+#Figure 2-------------------------------------------- 
+#Physical Traits over Latitude
 #SSC
 ag1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
   geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
@@ -975,11 +937,11 @@ guides(color = "none")
 
 
 ggarrange(ag1, ag3, ag2, ag4, ag5, ag6, nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
-ggsave("fig1.png", width=20, height=24, units="cm", dpi=600)
+ggsave("Figure2.jpeg", width=20, height=24, units="cm", dpi=600)
 
 
-#Phenolic Richness and Total Phenolics Plot------------------------------------
-
+#Figure 3------------------------------------
+#Phenolic Richness and Total Phenolics Plot
 ###Q1-B Phenolic Richness by Tissue Type over Latitude 
 ctp = ggplot(ChemLat, aes(x=Latitude, y=TotalPhenTrans, color=Tissue)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
@@ -1035,7 +997,7 @@ opr <- opr + guides(color = "none")
 otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(size= 1, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
-  ylab("Total Phenolics (PPW)") +
+  ylab("Total Phenolics (PDW)") +
   xlab("") +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Tissue")+
@@ -1051,7 +1013,7 @@ otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type))
 se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhenTrans, color=orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Seed Total Phenolics (PPW)") +
+  ylab ("Seed Total Phenolics (PDW)") +
   xlab ("Management System")+
   geom_smooth(method=glm, se=FALSE)+
   theme_classic() +  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
@@ -1071,9 +1033,10 @@ se.pr.l = ggplot(SeedD, aes(x=Latitude, y=PhenRich, color=orchard.type)) +
 
 
 ggarrange(otp, ctp, opr, cpr, se.tp.ag , se.pr.l, nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
-ggsave("fig2.png", width=20, height=24, units="cm", dpi=600)
+ggsave("Figure3.jpeg", width=20, height=24, units="cm", dpi=600)
 
-#Management practices Plots-----------------------------------------------------------------
+#Figure 4-----------------------------------------------------------------
+#Management practices Plots
 
 ###SCC###
 #creating data frame to plot all together 
@@ -1085,7 +1048,7 @@ brix <- data.frame(
 )
 
 
-sscplot = ggplot(brix, aes(x = Treatment, y = SSC, fill = Presence)) +
+sscplot = ggplot(brix, aes(x = Treatment, y = SSC, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
   ylab("SSC (°Bx) ") +
   theme_classic() +
@@ -1093,15 +1056,17 @@ sscplot = ggplot(brix, aes(x = Treatment, y = SSC, fill = Presence)) +
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   )+
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops            Herbicides              Mowing")+
-  guides(fill = FALSE)  
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops       Herbicides        Mowing")+
+theme(
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
 
-
+sscplot  <- sscplot  + guides(color = "none")
 
 
 ###Average Weight###
-axc = ggplot(c, aes(x = Mowing, y = avgwgt, fill = Mowing)) +
+axc = ggplot(c, aes(x = Mowing, y = avgwgt, color = Mowing)) +
   geom_boxplot(outlier.shape=NA)+
 ylab("Average Weight (g)") +
   xlab("Mowing") +
@@ -1110,13 +1075,21 @@ ylab("Average Weight (g)") +
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   )+
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill = FALSE)  
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage") +
+  guides(fill = FALSE)+
+  theme(
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 8),
+    axis.text.y = element_text(size = 10),
+    legend.position = "top")+
+  guides(fill = FALSE)
+
+axc  <- axc  + guides(color = "none")
 
 
 
 #Firmness
-fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = Herbicides)) +
+fxh = ggplot(c, aes(x = Herbicides, y = Firmness, color = Herbicides)) +
   geom_boxplot(outlier.shape=NA)+
  ylab("Firmness (N)") +
   xlab("Herbicides") +
@@ -1125,7 +1098,12 @@ fxh = ggplot(c, aes(x = Herbicides, y = Firmness, fill = Herbicides)) +
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   )+
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  guides(fill = FALSE) +
+  theme(
+    axis.text.y = element_text(size = 8))
+
+fxh  <- fxh  + guides(color = "none")
 
 #Maturity Index##
 #creating data frame to plot all together 
@@ -1139,7 +1117,7 @@ mp <- data.frame(
   Mat = rep(mp$c.maturity.index, 3)
 )
 
-matplot = ggplot(mp, aes(x = Treatment, y = Mat, fill = Presence)) +
+matplot = ggplot(mp, aes(x = Treatment, y = Mat, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
   ylab("Fruit Maturity (CSI) Values") +
   xlab("") +
@@ -1148,32 +1126,44 @@ matplot = ggplot(mp, aes(x = Treatment, y = Mat, fill = Presence)) +
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops           Cultivation           Herbicides") +
-  guides(fill = FALSE)  
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops        Cultivation        Herbicides") +
+  guides(fill = FALSE)+
+  theme(
+    axis.text.y = element_text(size = 6))
 
+matplot  <- matplot  + guides(color = "none")
 
 #####Skin Total Phenolics##
 
 #creating data frame to plot all together 
 skintotalphen <- data.frame(SkinD$Herbicides,SkinD$Com_Mul, SkinD$TotalPhenTrans )
+
 skintotalphen <- data.frame(
   Treatment = rep(c("skintotalphen$SkinD.Herbicides", "skintotalphen$SkinD.Com_Mul"), each = nrow(skintotalphen)),
   Presence = c(skintotalphen$SkinD.Herbicides, skintotalphen$SkinD.Com_Mul),
   TP = rep(skintotalphen$SkinD.TotalPhenTrans, 2)
 )
 
-skinmgmt = ggplot(skintotalphen, aes(x = Treatment, y = TP, fill = Presence)) +
+
+
+
+skinmgmt = ggplot(skintotalphen, aes(x = Treatment, y = TP, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
-  ylab("Skin Total Phenolics PDW") +
+  ylab("Skin Total Phenolics (PDW)") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Compost/Mulch                            Herbicides")+
-guides(fill= FALSE)
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Compost/Mulch                 Herbicides")+
+guides(fill= FALSE)+
+  theme(
+  axis.text.y = element_text(size = 6))
+
+skinmgmt  <- skinmgmt  + guides(color = "none")
+
 
 
 #####Pulp Total Phenolics##
@@ -1187,23 +1177,26 @@ pulptp <- data.frame(
   TP = rep(pulptp$PulpD.TotalPhenTrans, 2)
 )
 
-ppmgmt = ggplot(pulptp, aes(x = Treatment, y = TP, fill = Presence)) +
+ppmgmt = ggplot(pulptp, aes(x = Treatment, y = TP, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
-  ylab("Pulp Total Phenolics PDW") +
+  ylab("Pulp Total Phenolics (PDW)") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops                       Cultivation")+
-  guides(fill= FALSE)
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops              Cultivation")+
+  guides(fill= FALSE)+
+  theme(
+    axis.text.y = element_text(size = 6))
 
 
+ppmgmt  <- ppmgmt  + guides(color = "none")
 
 
 #Pulp Phenolic Richness
-prcm = ggplot(PulpD, aes(x = Cultivation, y = TotalPhenTrans, fill = Cultivation)) +
+prcm = ggplot(PulpD, aes(x = Cultivation, y = PhenRich, color = Cultivation)) +
   geom_boxplot(outlier.shape=NA)+
   ylab("Pulp Phenolic Richness") +
   xlab("Cultivation") +
@@ -1212,11 +1205,17 @@ prcm = ggplot(PulpD, aes(x = Cultivation, y = TotalPhenTrans, fill = Cultivation
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill= FALSE)
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  guides(fill= FALSE)+
+  theme(
+    axis.text.y = element_text(size = 6))
+
+prcm  <- prcm  + guides(color = "none")
+
+
 
 #Seed Phenolic Richness
-secm = ggplot(SeedD, aes(x = Com_Mul, y = TotalPhenTrans, fill = Com_Mul)) +
+secm = ggplot(SeedD, aes(x = Com_Mul, y = PhenRich, color = Com_Mul)) +
   geom_boxplot(outlier.shape=NA)+
   ylab("Seed Phenolic Richness") +
   xlab("Compost/Mulching") +
@@ -1225,13 +1224,17 @@ secm = ggplot(SeedD, aes(x = Com_Mul, y = TotalPhenTrans, fill = Com_Mul)) +
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_fill_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill= FALSE)
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  guides(fill= FALSE)+
+  theme(
+    axis.text.y = element_text(size = 6))
+
+secm  <- secm  + guides(color = "none")
 
 
 ggarrange(sscplot,axc, matplot, fxh, skinmgmt,secm, ppmgmt, prcm
           ,nrow = 4, ncol = 2, labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
-ggsave("mgmt_prac.png", width=16, height=20, units="cm", dpi=600)
+ggsave("Figure4.jpeg", width=20, height=20, units="cm", dpi=600)
 
 
 
