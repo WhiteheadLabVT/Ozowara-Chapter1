@@ -959,7 +959,6 @@ guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
     legend.position = "bottom")
 
 
-
 cpr = ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
   ylab ("Phenolic Richness") +
