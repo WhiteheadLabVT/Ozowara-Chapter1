@@ -149,13 +149,12 @@ Anova(Lat1)
 plot(SSC ~ maturity.index, data=TreeLat)
 
 #calculate effect size
-emmeans(Lat1, ~ Latitude*maturity.index, at = list(Latitude = c(34:48)), type= "reponse")
+emmeans(Lat1, ~ Latitude+maturity.index, at = list(Latitude = c(34:48)), type= "reponse")
 
 #Firmness 
 Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat2)
 Anova(Lat2)
-#Latitude              34.9002  1   3.47e-09 ***
 
 #calculate effect size
 emmeans(Lat2, ~ Latitude, at = list(Latitude = c(34:48)), type= "reponse")
@@ -235,11 +234,9 @@ tp.se <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + maturity.index +(1|sit
                  data=d.se, family=beta_family(link="logit"))
 summary(tp.se)
 Anova(tp.se)
-#orchard.type          8.0185  1    0.00463 **
- 
-#calculate effect size
-emmeans(tp.se, ~orchard.type, type="response")
 
+#calculate effect size
+emmeans(tp.se, ~maturity.index, type="response")
 
 ###phenolics richness###
 pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude*Tissue + maturity.index + (1|site.code/orchard.num), data=ChemLat, 
@@ -247,9 +244,16 @@ pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude*Tissue + maturity.index + (1|site
 summary(pr1)
 Anova(pr1)
 
+mean(ChemLat$PhenRich)
+var(ChemLat$PhenRich)
+
+mean(d.pu$PhenRich)
+var(d.pu$PhenRich)
+
+
 #skin
 pr.sk <- glmmTMB(PhenRich ~ orchard.type*Latitude+maturity.index+(1|site.code/orchard.num), data=d.sk,
-                 family=poisson(link="log"))
+                 family=negative.binomial(theta=stop,link= "log"))
 summary(pr.sk)
 Anova(pr.sk)
 
@@ -267,8 +271,7 @@ pr.se <- glmmTMB(PhenRich ~ orchard.type*Latitude+maturity.index+(1|site.code/or
 summary(pr.se)
 Anova(pr.se)
 
-#maturity.index        10.6801  1   0.001083 **
-#orchard.type:Latitude  3.0240  1   0.082042 . 
+plot(PhenRich ~ maturity.index, data=d.se)
 
 #calculate effect size
 emmeans(pr.se,~maturity.index, type="response")
@@ -301,36 +304,32 @@ nmds_scores <- vegan::scores(m.NMDS.sk, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.sk),
-                       lat_cat = factor(rep(c("high", "low"), length.out = nrow(d.expl.sk))),
-                       orchard.type = factor(rep(c("Organic", "Conventional"), length.out = nrow(d.expl.sk))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.sk, by = "row.names")
 
 names(merged_data)
 # Plot with ggplot2
-sk.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= merged_data$lat_cat)) +
+sk.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
   scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
-  stat_ellipse(aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Skin",
        x = "NMDS Axis 1",
        y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
-print(sk.nmds)
-
+#For some reason ggplot does not want to plot the shape and color at the same time
+#this code supresses the warning and prints anyways 
+suppressWarnings(print(sk.nmds))
 
 sk.nmds  <- sk.nmds  + guides(color = "none")
 
 
 #PERMANOVA can test whether the visualized differences are significant
-m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat.x+maturity.index, data=d.expl.sk)
+m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat+maturity.index, data=d.expl.sk)
 m.perm1
 
 
@@ -346,28 +345,24 @@ nmds_scores <- vegan::scores(m.NMDS.pu, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.pu),
-                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.pu))),
-                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.pu))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.pu, by = "row.names")
 
 # Plot with ggplot2
-pu.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+pu.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
-  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Pulp",
-       x = " ",
-       y = " ") +
+       x = "NMDS Axis 1",
+       y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
 
-
+suppressWarnings(print(pu.nmds))
 
 #PERMANOVA
 m.perm2 <- adonis2(d.comp.pu~orchard.type*lat_cat+maturity.index, data=d.expl.pu)
@@ -384,26 +379,24 @@ nmds_scores <- vegan::scores(m.NMDS.se, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.se),
-                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.se))),
-                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.se))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.se, by = "row.names")
 
 # Plot with ggplot2
-se.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+se.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
-  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Seed",
-       x = " ",
-       y = " ") +
+       x = "NMDS Axis 1",
+       y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
+
+suppressWarnings(print(se.nmds))
 
 se.nmds  <- se.nmds  + guides(color = "none")
 
@@ -591,8 +584,8 @@ library(factoextra)
 #here I'm extracting the management varibales for analysis 
 
 p_mgmt <- dplyr::select(c,c("Com_Mul", "Cover_Crops", "Root.Stock", "Age_Cat", 
-                            "Training", "Weed_Mats", "Herbicides", "Acres",
-                      "Mowing", "Cultivation"))
+                            "Training", "Weed_Mats", "Herbicides",
+                      "Mowing", "Cultivation", "Acre_Cat", "orchard.type"))
 
 
 #character data needs to be converted into factor data 
@@ -605,6 +598,8 @@ p_mgmt$Herbicides <- as.factor(as.character(p_mgmt$Herbicides))
 p_mgmt$Mowing <- as.factor(as.character(p_mgmt$Mowing))
 p_mgmt$Cultivation <- as.factor(as.character(p_mgmt$Cultivation))
 p_mgmt$Age_Cat <- as.factor(as.character(p_mgmt$Age_Cat))
+p_mgmt$Acre_Cat <- as.factor(as.character(p_mgmt$Acre_Cat))
+p_mgmt$orchard.type <- as.factor(as.character(p_mgmt$orchard.type))
 
 
 #removing unfinished survey from orchard 
@@ -615,9 +610,9 @@ p_mgmt <- p_mgmt[-c(17), ]
 
 # Perform FAMD on the dataset
 # Adjust `ncp` to set the number of dimensions/components you want to compute
-famd_result <- FAMD(p_mgmt, ncp = 10, graph = TRUE)
+famd_result <- FAMD(p_mgmt, ncp = 11, graph = FALSE)
 
-FAMD (p_mgmt, ncp = 5, sup.var = NULL, ind.sup = NULL, graph = TRUE)
+FAMD(p_mgmt, ncp = 5, sup.var = NULL, ind.sup = NULL, graph = TRUE)
 
 # View the results summary
 summary(famd_result)
@@ -643,6 +638,28 @@ fviz_famd_var(famd_result, repel = TRUE)
 eigenvalues <- famd_result$eig
 
 famd_scores <- as.data.frame(famd_result$ind$coord)
+
+#Multiple Corrspondence Analysis------------------------------------------------
+
+
+mca_result <- MCA(p_mgmt,ncp =5, graph = TRUE)
+
+res.mca <- MCA(p_mgmt, graph = FALSE)
+print(res.mca)
+summary(res.mca)
+
+
+eig.val <- get_eigenvalue(res.mca)
+head(eig.val)
+
+
+fviz_screeplot(res.mca, addlabels = TRUE, ylim = c(0, 45))
+
+fviz_mca_biplot(res.mca, 
+                repel = TRUE, # Avoid text overlapping (slow if many point)
+                ggtheme = theme_minimal())
+
+
 
 ##GLMMs-------------------------------------------------------------------------
 c <- c[-c(17), ]

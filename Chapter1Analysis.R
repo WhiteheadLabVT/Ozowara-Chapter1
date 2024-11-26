@@ -900,43 +900,19 @@ ag3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(color = "none") 
 
-#Maturity Index 
-ag4= ggplot(TreeLat, aes(x=Latitude, y=maturity.index, color=orchard.type)) +
+#SSC X Mauturity index 
+ag4= ggplot(TreeLat, aes(x=maturity.index, y=SSC, color=orchard.type)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Fruit Maturity (CSI) Value") +
-  xlab ("Latitude")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+  
-  scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
-  guides(color = "none") 
-
-
-#avg high 
-ag5= ggplot(Tree_low, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
-  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Average Weight (g)") +
-  xlab ("Low Latitude")+
+  ylab ("Soluble Sugar Content (°Bx)") +
+  xlab ("Fruit Maturity Index (CSI)")+
   geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +  
   scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
-  scale_x_continuous(breaks = seq(34, 41, by = 2))+ 
+  scale_x_continuous(breaks = seq(3,7, by = 1))+ 
   guides(color = "none") 
 
-#avg high 
-ag6= ggplot(Tree_high, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
-  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Average Weight (g)") +
-  xlab ("High Latitude")+
-  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +  
-  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
-  scale_x_continuous(breaks = seq(42, 49, by = 2))+ 
-guides(color = "none") 
 
-
-
-ggarrange(ag1, ag3, ag2, ag4, ag5, ag6, nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
+ggarrange(ag1, ag3, ag2, ag4, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
 ggsave("Figure2.jpeg", width=20, height=24, units="cm", dpi=600)
 
 
@@ -1323,3 +1299,7 @@ aggregate(d, phloridzin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt
 aggregate(d.pu, caffeic_acid~lat_cat, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
 
 
+
+
+
+#prctice 
