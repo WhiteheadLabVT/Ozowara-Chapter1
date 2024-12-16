@@ -30,6 +30,8 @@ Orchard$orchard.num <- as.factor(as.character(Orchard$orchard.num))
 Tree <- read_csv("Ozowara_et_al_TreeLevelData.csv")
 View(Tree_Level_Data)
 Tree$orchard.num <- as.factor(as.character(Tree$orchard.num))
+Tree$Tree <- as.factor(as.character(Tree$Tree))
+
 
 #Phenolics Data (359 obs)
 d <-read_csv("Ozowara_et_al_FruitLevelData.csv")
@@ -136,17 +138,21 @@ SeedD <- left_join(SeedD, Orchard, by="orchard.num")
 #across latitude 
 #Q1-A: Physical Quality------------------------------------------------------------
 #binding latitude to the 120 obs data set#
-TreeLat <- left_join(Tree, Orchard[,c(2,4)], by="orchard.num")
+TreeLat <- left_join(Tree, Orchard %>% select(orchard.num, Latitude, lat_cat), 
+                     by = c("orchard.num"))
+
 #SSC
-Lat1<- glmmTMB(SSC ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+Lat1<- glmmTMB(SSC ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat1)
 Anova(Lat1) 
 
+plot(SSC ~ maturity.index, data=TreeLat)
+
 #calculate effect size
-emmeans(Lat1, ~ Latitude, at = list(Latitude = c(34:48)), type= "reponse")
+emmeans(Lat1, ~ Latitude+maturity.index, at = list(Latitude = c(34:48)), type= "reponse")
 
 #Firmness 
-Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+Lat2<- glmmTMB(Firmness ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat2)
 Anova(Lat2)
 
@@ -154,22 +160,13 @@ Anova(Lat2)
 emmeans(Lat2, ~ Latitude, at = list(Latitude = c(34:48)), type= "reponse")
 
 #Average Weight 
-Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + (1|site.code/orchard.num), data=TreeLat)
+Lat3<- glmmTMB(avgwgt ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), data=TreeLat)
 summary(Lat3)
 Anova(Lat3) 
+#orchard.type:Latitude 9.6577  1   0.001886 **
 
 #calculate effect size
 emmeans(Lat3, ~ Latitude|orchard.type, at = list(Latitude = c(34:48)), type= "reponse")
-
-
-#Maturity Index 
-Lat4<- glmmTMB(maturity.index ~ orchard.type*Latitude + (1|site.code/orchard.num), 
-               data=TreeLat)
-summary(Lat4)
-Anova(Lat4)  
-
-#calculate effect size
-emmeans(Lat4, ~ Latitude, at = list(Latitude = c(34:48)), type= "reponse")
 
 
 ###Investigating Latitude and Average weight 
@@ -178,12 +175,12 @@ Tree_low <- filter(TreeLat, Latitude<42)
 Tree_high <- filter(TreeLat, Latitude>42)
 
 #Low Latitude Sites 
-avg_low<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_low)
+avg_low<- glmmTMB(avgwgt ~ orchard.type + maturity.index +(1|site.code/orchard.num), data=Tree_low)
 summary(avg_low)
 Anova(avg_low) 
 
 #High Latitude Sites 
-avg_hgh<- glmmTMB(avgwgt ~ orchard.type + (1|site.code/orchard.num), data=Tree_high)
+avg_hgh<- glmmTMB(avgwgt ~ orchard.type + maturity.index + (1|site.code/orchard.num), data=Tree_high)
 summary(avg_hgh)
 Anova(avg_hgh)
 
@@ -192,80 +189,101 @@ emmeans(avg_hgh,pairwise~orchard.type, type="response")
 
 #Q1-B: Fruit Chemistry-------------------------------------------------------------
 #binding latitude to the 359 obs data set 
-ChemLat <- left_join(d, Orchard[,c(2,4,40)], by="orchard.num")
+ChemLat <- left_join(d, Orchard %>% select(orchard.num, Latitude), 
+                     by = c("orchard.num"))
+ChemLat <- left_join(ChemLat, TreeLat %>% select(orchard.num, Tree, maturity.index), 
+                     by = c("orchard.num", "Tree"))
 
 #Total Phenolics with beta distribution 
-tp1 <- glmmTMB(TotalPhenTrans ~ orchard.type*Tissue*Latitude + 
-                 (1|site.code/orchard.num/Tree), data=ChemLat, family=beta_family(link="logit"))
+tp1 <- glmmTMB(TotalPhenTrans ~ orchard.type*Tissue*Latitude + maturity.index +
+                 (1|site.code/orchard.num), data=ChemLat, family=beta_family(link="logit"))
 summary(tp1)
 Anova(tp1)
 
 #binding latitudinal data to tissue data sets
 d.sk <- left_join(d.sk, Orchard[,c(2,4)], by="orchard.num")
+d.sk <- left_join(d.sk, TreeLat %>% select(orchard.num, Tree, maturity.index), 
+                  by = c("orchard.num", "Tree"))
+
 d.pu <- left_join(d.pu, Orchard[,c(2,4)], by="orchard.num")
+d.pu <- left_join(d.pu, TreeLat %>% select(orchard.num, Tree, maturity.index), 
+                  by = c("orchard.num", "Tree"))
+
+
 d.se <- left_join(d.se, Orchard[,c(2,4)], by="orchard.num")
+d.se <- left_join(d.se, TreeLat %>% select(orchard.num, Tree, maturity.index), 
+                  by = c("orchard.num", "Tree"))
 
 ###total phenolics###
 #skin
-tp.sk <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+tp.sk <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), 
                  data=d.sk, family=beta_family(link="logit"))
 summary(tp.sk)
 Anova(tp.sk)
 #nothing 
 
 #pulp
-tp.pu <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + (1|site.code/orchard.num), 
+tp.pu <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + maturity.index + (1|site.code/orchard.num), 
                  data=d.pu, family=beta_family(link="logit"))
 summary(tp.pu)
 Anova(tp.pu)
 #nothing 
 
 #seed
-tp.se <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + (1|site.code/orchard.num/Tree), 
+tp.se <- glmmTMB(TotalPhenTrans ~ orchard.type*Latitude + maturity.index +(1|site.code/orchard.num/Tree), 
                  data=d.se, family=beta_family(link="logit"))
 summary(tp.se)
 Anova(tp.se)
 
 #calculate effect size
-emmeans(tp.se, ~orchard.type, type="response")
-
+emmeans(tp.se, ~maturity.index, type="response")
 
 ###phenolics richness###
-pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude*Tissue + (1|site.code/orchard.num/Tree), data=ChemLat, 
+pr1 <- glmmTMB(PhenRich~ orchard.type*Latitude*Tissue + maturity.index + (1|site.code/orchard.num), data=ChemLat, 
                family=poisson(link="log"))
 summary(pr1)
 Anova(pr1)
 
-#pulp
-pr.p <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=d.pu,
-                family=poisson(link="log"))
-summary(pr.p)
-Anova(pr.p)
 
 #skin
-pr.sk <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=d.sk,
+pr.sk <- glmmTMB(PhenRich ~ orchard.type*Latitude+maturity.index+(1|site.code/orchard.num), data=d.sk, 
                  family=poisson(link="log"))
 summary(pr.sk)
 Anova(pr.sk)
 
+
+#pulp
+pr.p <- glmmTMB(PhenRich ~ orchard.type*Latitude+maturity.index+(1|site.code/orchard.num), data=d.pu, 
+                family=poisson(link="log"))
+summary(pr.p)
+Anova(pr.p)
+
+
 #seed
-pr.se <- glmmTMB(PhenRich ~ orchard.type*Latitude+(1|site.code/orchard.num), data=d.se,
+pr.se <- glmmTMB(PhenRich ~ orchard.type*Latitude+maturity.index+(1|site.code/orchard.num), data=d.se, 
                  family=poisson(link="log"))
 summary(pr.se)
 Anova(pr.se)
 
+plot(PhenRich ~ maturity.index, data=d.se)
+
 #calculate effect size
-emmeans(pr.se, ~ Latitude, at = list(Latitude = c(34:48)), type= "reponse")
+emmeans(pr.se,~maturity.index, type="response")
 
-
-#Q1-C: Which compounds distinguish fruits based on management systems?----------
-#Analysis: NMDS and random forest
 #Q1-C: NMDS + PERMANOVA---------------------------------------------------------
 #left joining the "expl" by latitude  
-d.expl <- left_join(d.expl, Orchard[,c(2,40)], by="orchard.num")
-d.expl.sk <- left_join(d.expl.sk, Orchard[,c(2,40)], by="orchard.num")
-d.expl.pu <- left_join(d.expl.pu, Orchard[,c(2,40)], by="orchard.num")
-d.expl.se <- left_join(d.expl.se, Orchard[,c(2,40)], by="orchard.num")
+
+d.expl <- left_join(d.expl, TreeLat %>% select(orchard.num, Tree, maturity.index,lat_cat), 
+          by = c("orchard.num", "Tree"))
+
+d.expl.sk <- left_join(d.expl.sk, TreeLat %>% select(orchard.num, Tree, maturity.index, lat_cat), 
+                    by = c("orchard.num", "Tree"))
+
+d.expl.pu <- left_join(d.expl.pu, TreeLat %>% select(orchard.num, Tree, maturity.index,lat_cat), 
+                       by = c("orchard.num", "Tree"))
+
+d.expl.se <- left_join(d.expl.se, TreeLat %>% select(orchard.num, Tree, maturity.index, lat_cat), 
+                       by = c("orchard.num", "Tree"))
 
 ###NMDS for Skin 
 m.NMDS.sk <- metaMDS(d.comp.sk, distance = "bray", trymax=100, autotransform =FALSE)
@@ -280,31 +298,32 @@ nmds_scores <- vegan::scores(m.NMDS.sk, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.sk),
-                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.sk))),
-                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.sk))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.sk, by = "row.names")
 
+names(merged_data)
 # Plot with ggplot2
-sk.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+sk.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
-  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Skin",
        x = "NMDS Axis 1",
        y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
+#For some reason ggplot does not want to plot the shape and color at the same time
+#this code supresses the warning and prints anyways 
+suppressWarnings(print(sk.nmds))
+
 sk.nmds  <- sk.nmds  + guides(color = "none")
 
 
 #PERMANOVA can test whether the visualized differences are significant
-m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat, data=d.expl.sk)
+m.perm1 <- adonis2(d.comp.sk~orchard.type*lat_cat+maturity.index, data=d.expl.sk)
 m.perm1
 
 
@@ -320,31 +339,27 @@ nmds_scores <- vegan::scores(m.NMDS.pu, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.pu),
-                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.pu))),
-                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.pu))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.pu, by = "row.names")
 
 # Plot with ggplot2
-pu.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+pu.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
-  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Pulp",
-       x = " ",
-       y = " ") +
+       x = "NMDS Axis 1",
+       y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
 
-
+suppressWarnings(print(pu.nmds))
 
 #PERMANOVA
-m.perm2 <- adonis2(d.comp.pu~orchard.type*lat_cat, data=d.expl.pu)
+m.perm2 <- adonis2(d.comp.pu~orchard.type*lat_cat+maturity.index, data=d.expl.pu)
 m.perm2
 
 
@@ -358,32 +373,30 @@ nmds_scores <- vegan::scores(m.NMDS.se, display = "sites")
 data.scores <- as.data.frame(nmds_scores)
 data.scores$SampleID <- rownames(data.scores)
 
-# Assuming you have a metadata data frame with 'SampleID' and 'Group' columns
-# Example: Creating metadata (replace with your actual metadata)
-metadata <- data.frame(SampleID = rownames(d.comp.se),
-                       Latitudinal.Category = factor(rep(c("High", "Low"), length.out = nrow(d.expl.se))),
-                       Management.System = factor(rep(c("Organic", " Conventional"), length.out = nrow(d.expl.se))))
-
 # Merge NMDS scores with metadata
-merged_data <- merge(data.scores, metadata, by = "SampleID")
+merged_data <- merge(data.scores, d.expl.se, by = "row.names")
 
 # Plot with ggplot2
-se.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color = Management.System, shape = Latitudinal.Category)) +
+se.nmds <- ggplot(merged_data, aes(x = NMDS1, y = NMDS2, color=orchard.type, shape= lat_cat)) +
   geom_point(size = 2) +
+  geom_jitter(size = 2, width = 0.5, height = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#3b0f70", "#de4968"), name = "Management System")+
-  stat_ellipse(aes(group = Management.System), level = 0.95, geom = "polygon", alpha = 0.2) +
+  scale_shape_manual(values = c(16, 17), name = "Latitudinal Category") +  
+  stat_ellipse(mapping = aes(group = orchard.type), level = 0.95, geom = "polygon", alpha = 0.2) +
   labs(title = "Seed",
-       x = " ",
-       y = " ") +
+       x = "NMDS Axis 1",
+       y = "NMDS Axis 2") +
   theme(legend.position = "bottom")
 
+
+suppressWarnings(print(se.nmds))
 
 se.nmds  <- se.nmds  + guides(color = "none")
 
 
 #PERMANOVA
-m.perm3 <- adonis2(d.comp.se~orchard.type*lat_cat, data=d.expl.se)
+m.perm3 <- adonis2(d.comp.se~orchard.type*lat_cat+maturity.index, data=d.expl.se)
 m.perm3
 
 
@@ -391,6 +404,8 @@ m.perm3
 ##joining all for multiplot 
 ggarrange(sk.nmds, pu.nmds, se.nmds, nrow = 1, ncol = 3, labels = c("A", "B", "C"))
 ggsave("fig5.png", width=20, height=24, units="cm", dpi=600)
+
+
 
 
 
@@ -581,6 +596,7 @@ for (i in 1:length(colnames(d.comp.se.sel))){
 }
 dev.off()
 
+
 #Q2: Which abiotic factors are the most important drivers of fruit quality?---------
 #Analysis: principle components analysis followed by PC regression with each variable
 #create a vector for all of the PCs
@@ -612,8 +628,8 @@ biplot(results,choices=1:2, cex = 0.001,
        cex.lab = 1.2, 
        cex.axis = 1.1, 
        cex.main = 1.5,
-xlim = c(-2.1, 2.1), # Adjust these limits to zoom in on the x-axis
-ylim = c(-2.1, 2.1))
+       xlim = c(-2.1, 2.1), # Adjust these limits to zoom in on the x-axis
+       ylim = c(-2.1, 2.1))
 
 
 
@@ -640,8 +656,8 @@ pc_clim <- as.data.frame(results$x)
 
 #correlation matrix  
 p_clim1 <- dplyr::select(c,c("Prox.Water","elevation", 
-"Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip",
-"Szn.UVI"))
+                             "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip",
+                             "Szn.UVI"))
 
 #The first matrix shows the correlation coefficients between the variables  
 #the second matrix shows the corresponding p-values.
@@ -664,41 +680,35 @@ corrplot(cor(p_clim1), p.mat = testRes$p, method = 'color', diag = FALSE, type =
 ##Linear models for PC x quality 
 pc_clim_phys <- cbind(pc_clim, c)
 
-
 ###Firmness###
-p1 <- glmmTMB(Firmness ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
+p1 <- glmmTMB(Firmness ~ orchard.type+ maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p1)
 
 plot(Firmness ~ PC1, data=pc_clim_phys)
 plot(Firmness ~ PC2, data=pc_clim_phys)
 plot(Firmness ~ PC3, data=pc_clim_phys)
+plot(Firmness ~ PC4, data=pc_clim_phys)
 
 results$rotation
 
 ###SSC###
-P2 <- glmmTMB(SSC ~ orchard.type + PC1 + PC2 + PC3 + PC4 + (1|site.code), data= pc_clim_phys)
+P2 <- glmmTMB(SSC ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data= pc_clim_phys)
 summary(P2)
 
 plot(SSC ~ PC1, data=pc_clim_phys)
 plot(SSC ~ PC2, data=pc_clim_phys)
+plot(SSC ~ PC4, data=pc_clim_phys)
 
 results$rotation
 
 ###AVGWGT
-p3 <- glmmTMB(avgwgt ~ orchard.type + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
+p3 <- glmmTMB(avgwgt ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p3)
 
 plot(avgwgt ~ PC2, data=pc_clim_phys)
 
 results$rotation
 
-###Maturity Index 
-p4 <- glmmTMB(maturity.index ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
-summary(p4)
-
-plot(maturity.index ~ PC1, data=pc_clim_phys)
-
-results$rotation
 
 #Q2-B: Fruit Chemistry----------------------------------------------------------
 #Linear models for PC X total phenolics and phenolic richness 
@@ -706,12 +716,12 @@ results$rotation
 pc.sk_clim <- cbind(pc_clim, SkinD)
 
 #TotalPhen
-pc.sk.tp <- glmmTMB(TotalPhenTrans ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + 
+pc.sk.tp <- glmmTMB(TotalPhenTrans ~ orchard.type+ maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.sk_clim, family=beta_family (link="logit"))
 summary(pc.sk.tp)
 
 #PhenRich
-pc.sk.pr <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 + 
+pc.sk.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.sk_clim)
 summary(pc.sk.pr)
 
@@ -719,12 +729,12 @@ summary(pc.sk.pr)
 pc.pu_clim <- cbind(pc_clim, PulpD)
 
 ##TotalPhen###
-pc.pu.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + PC1 + PC2 + PC3 + PC4 + 
+pc.pu.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim, family=beta_family (link="logit"))
 summary(pc.pu.tp)
 
 #PhenRich 
-pc.pu.pr <- glmmTMB(PhenRich ~ orchard.type+ PC1 + PC2 + PC3 + PC4 + 
+pc.pu.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim)
 summary(pc.pu.pr)
 
@@ -732,14 +742,62 @@ summary(pc.pu.pr)
 pc.se_clim <- cbind(pc_clim, SeedD)
 
 #TotalPhen
-pc.se.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + PC1 + PC2 + PC3 + PC4 + 
+pc.se.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.se_clim, family=beta_family (link="logit"))
 summary(pc.se.tp)
 
 #PhenRich 
-pc.se.pr <- glmmTMB(PhenRich ~ orchard.type + PC1 + PC2 + PC3 + PC4 +
+pc.se.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 +
                       (1|site.code), data=pc.se_clim)
 summary(pc.se.pr)
+
+
+#Dummy Coded Corroplot----------------------------------------------------------
+
+cheese <- read.csv("Cheese.csv")
+names(cheese)
+
+
+p_mgmt <- dplyr::select(cheese,c("orchard.type", "Com_Mul", "Cover_Crops", "Weed_Mats", "Herbicides", "Acres",
+                            "Mowing", "Cultivation","Prox.Water","elevation", 
+                            "Szn.Max.Avg", "Szn.Min.Avg","Szn.Temp.Avg","Szn.Total.Precip","Szn.UVI"))
+
+
+
+p_mgmt <- p_mgmt[-c(17), ]
+
+#The first matrix shows the correlation coefficients between the variables  
+#the second matrix shows the corresponding p-values.
+rcorr(as.matrix(p_mgmt))
+
+#now let's visualize this 
+corrplot(cor(p_mgmt))
+
+testRes = cor.mtest(p_mgmt, conf.level = 0.95)
+
+## add all p-values
+corrplot(cor(p_mgmt), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
+
+## add significant level stars
+corrplot(cor(p_mgmt), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
+         sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
+
+
+### rootstock has 7 levels so these results shouldnt be trusted too much 
+### training system follows the same interpretation 
+
+###Cover Crops: UVI, All temps, acres, "rootstock"
+### training x orchard type 
+### vultivation x herbicides + com_mulch 
+### rootstock x uvi + all temps 
+
+
+
+
+
+
+
 
 #Q3: Which specific management practices are the most important drivers of fruit quality?----
 #For this analysis, we'll be running GLMMs against every mgmt variable. 
@@ -750,7 +808,7 @@ view(c)
 
 #SSC
 mgmt1 <- glmmTMB(SSC ~ orchard.type+ Cultivation + Herbicides + Com_Mul + Mowing +
-Cover_Crops  + (1|site.code), 
+                   Cover_Crops  + (1|site.code), 
                  data=c)
 summary(mgmt1)
 Anova(mgmt1)
@@ -763,7 +821,7 @@ emmeans(mgmt1,~ Cover_Crops   , type="response")
 
 #Average Weight
 mgmt2 <- glmmTMB(avgwgt ~ orchard.type + Cultivation + Herbicides + Com_Mul + 
-Mowing +Cover_Crops + (1|site.code), data=c)
+                   Mowing +Cover_Crops + (1|site.code), data=c)
 summary(mgmt2)
 Anova(mgmt2)
 
@@ -772,7 +830,7 @@ emmeans(mgmt2,~Mowing, type="response")
 
 #Firmness 
 mgmt3 <- glmmTMB(Firmness ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-Cover_Crops + (1|site.code), 
+                   Cover_Crops + (1|site.code), 
                  data=c)
 summary(mgmt3)
 Anova(mgmt3)
@@ -782,7 +840,7 @@ emmeans(mgmt3,~Herbicides, type="response")
 
 #Maturity Index 
 mgmt4 <- glmmTMB(maturity.index ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-Cover_Crops + (1|site.code), 
+                   Cover_Crops + (1|site.code), 
                  data=c)
 summary(mgmt4)
 Anova(mgmt4)
@@ -813,7 +871,7 @@ emmeans(mgmt.sk,  ~ Com_Mul, type="response")
 
 ###Pulp Total Phenolics###
 mgmt.pu <- glmmTMB(TotalPhenTrans ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
- Cover_Crops + (1|site.code), 
+                     Cover_Crops + (1|site.code), 
                    data=PulpD, family=beta_family(link="logit"))
 summary(mgmt.pu)
 Anova(mgmt.pu)
@@ -824,14 +882,14 @@ emmeans(mgmt.pu, ~ Cover_Crops,type="response")
 
 ###Seed Total Phenolics###
 mgmt.se <- glmmTMB(TotalPhenTrans ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
- Cover_Crops + (1|site.code), 
+                     Cover_Crops + (1|site.code), 
                    data=SeedD, family=beta_family(link="logit"))
 summary(mgmt.se)
 Anova(mgmt.se)
 
 ###Skin Phenolic Richness### 
 mgmt.pr.sk <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-Cover_Crops + (1|site.code), 
+                        Cover_Crops + (1|site.code), 
                       data=SkinD)
 summary(mgmt.pr.sk)
 Anova(mgmt.pr.sk)
@@ -849,7 +907,7 @@ emmeans(mgmt.pr.pu,~Cultivation, type= "response")
 
 ###Seed Phenolic Richness### 
 mgmt.pr.se <- glmmTMB(PhenRich ~ orchard.type + Cultivation + Herbicides + Com_Mul + Mowing +
-Cover_Crops + (1|site.code), 
+                        Cover_Crops + (1|site.code), 
                       data=SeedD)
 summary(mgmt.pr.se)
 Anova(mgmt.pr.se)
@@ -869,7 +927,7 @@ ag1= ggplot(TreeLat, aes(x=Latitude, y=SSC, color=orchard.type)) +
   theme_classic() +  
   scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+
-guides(color = "none") 
+  guides(color = "none") 
 
 #Firmness
 ag2= ggplot(TreeLat, aes(x=Latitude, y=Firmness, color=orchard.type)) +
@@ -911,7 +969,7 @@ ctp = ggplot(ChemLat, aes(x=Latitude, y=TotalPhenTrans, color=Tissue)) +
   theme_classic() +
   scale_color_manual(values=c("#22a884", "#fe9f6d", "#414487"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
-guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
+  guides(shape = guide_legend(override.aes = list(shape = c(16, 17))))+
   theme(
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
@@ -927,7 +985,7 @@ cpr = ggplot(ChemLat, aes(x=Latitude, y=PhenRich, color=Tissue)) +
   theme_classic() +
   scale_color_manual(values=c("#22a884", "#fe9f6d", "#414487"),name="Tissue")+
   scale_x_continuous(breaks = seq(34, 49, by = 3))
-  
+
 
 cpr  <- cpr  + guides(color = "none")
 
@@ -950,8 +1008,7 @@ opr = ggplot(ChemLat, aes(x = Tissue, y = PhenRich, color = orchard.type)) +
 
 opr <- opr + guides(color = "none")
 
-  
-  
+
 #mgmt and tissue 
 otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type)) +
   geom_boxplot(outlier.shape=NA)+
@@ -968,47 +1025,28 @@ otp = ggplot(ChemLat, aes(x = Tissue, y = TotalPhenTrans, color = orchard.type))
     legend.position = "bottom")
 
 
-#seed total phenolics 
-se.tp.ag=ggplot(d.se, aes(x=orchard.type, y=TotalPhenTrans, color=orchard.type)) +
-  geom_boxplot(outlier.shape=NA)+
-  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Seed Total Phenolics (PDW)") +
-  xlab ("Management System")+
-  geom_smooth(method=glm, se=FALSE)+
-  theme_classic() +  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
- guides(color = "none")
 
 
-
-se.pr.l = ggplot(SeedD, aes(x=Latitude, y=PhenRich, color=orchard.type)) +
-  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab (" Seed Phenolic Richness") +
-  xlab ("Latitude")+
-  geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
-  theme_classic() +
-  scale_color_manual(values=c("#3b0f70", "#de4968"),name="mgmt")+
-  scale_x_continuous(breaks = seq(34, 49, by = 3))+
-  guides(color = "none")
-
-
-ggarrange(otp, ctp, opr, cpr, se.tp.ag , se.pr.l, nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
+ggarrange(otp, ctp, opr, cpr, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
 ggsave("Figure3.jpeg", width=20, height=24, units="cm", dpi=600)
 
 #Figure 4-----------------------------------------------------------------
 #Management practices Plots
-
 ###SCC###
 #creating data frame to plot all together 
-brix <- data.frame(c$Herbicides,c$Mowing, c$Cover_Crops, c$SSC )
+brix <- data.frame(c$SSC,c$avgwgt,c$Firmness, c$Herbicides,c$Mowing, c$Cover_Crops, c$Cultivation, c$Com_Mul )
+brix <- brix[-c(17), ]
 brix <- data.frame(
-  Treatment = rep(c("c.Herbicides", "c.Mowing", "c.Cover_Crops"), each = nrow(brix)),
-  Presence = c(brix$c.Herbicides, brix$c.Mowing, brix$c.Cover_Crops),
-  SSC = rep(brix$c.SSC, 3)
+  Treatment = rep(c("c.Herbicides", "c.Com_Mul","c.Cultivation","c.Cover_Crops",  "c.Mowing"), each = nrow(brix)),
+  Presence = c(brix$c.Herbicides, brix$c.Mowing, brix$c.Cover_Crops, brix$c.Cultivation, brix$c.Com_Mul),
+  SSC = rep(brix$c.SSC, 5),
+  avgwgt = rep(brix$c.avgwgt, 5),
+  Firmness = rep(brix$c.Firmness, 5)
 )
 
-
+#SSC
 sscplot = ggplot(brix, aes(x = Treatment, y = SSC, color = Presence)) +
-  geom_boxplot(outlier.shape=NA) +
+  geom_boxplot(outlier.shape = NA) +
   ylab("SSC (°Bx) ") +
   theme_classic() +
   theme(
@@ -1016,183 +1054,197 @@ sscplot = ggplot(brix, aes(x = Treatment, y = SSC, color = Presence)) +
     axis.ticks.x = element_blank()
   )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops       Herbicides        Mowing")+
-theme(
+  xlab(" ")+
+  theme(
     axis.text.y = element_text(size = 8))+
   guides(fill = FALSE)
 
 sscplot  <- sscplot  + guides(color = "none")
 
-
-###Average Weight###
-axc = ggplot(c, aes(x = Mowing, y = avgwgt, color = Mowing)) +
-  geom_boxplot(outlier.shape=NA)+
-ylab("Average Weight (g)") +
-  xlab("Mowing") +
+#weight
+wgtplot = ggplot(brix, aes(x = Treatment, y = avgwgt, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Average Weight (g) ") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   )+
-  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage") +
-  guides(fill = FALSE)+
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("")+
   theme(
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 8),
-    axis.text.y = element_text(size = 10),
-    legend.position = "top")+
+    axis.text.y = element_text(size = 8))+
   guides(fill = FALSE)
 
-axc  <- axc  + guides(color = "none")
+wgtplot  <- wgtplot  + guides(color = "none")
 
-
-
-#Firmness
-fxh = ggplot(c, aes(x = Herbicides, y = Firmness, color = Herbicides)) +
-  geom_boxplot(outlier.shape=NA)+
- ylab("Firmness (N)") +
-  xlab("Herbicides") +
+#Firmness 
+firplot = ggplot(brix, aes(x = Treatment, y = Firmness, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Firmness (N) ") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill = FALSE) +
+  xlab(" ")+
   theme(
-    axis.text.y = element_text(size = 8))
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
 
-fxh  <- fxh  + guides(color = "none")
+firplot  <- firplot  + guides(color = "none")
 
-#Maturity Index##
-#creating data frame to plot all together 
-mp <- data.frame(c$Herbicides,c$Cultivation, c$Cover_Crops, c$maturity.index)
-
-mp <- data.frame(
-  Treatment = rep(c("mp$c.Herbicides", "mp$c.Cultivation", 
- "mp$c.Cover_Crops" ), each = nrow(mp)),
-  Presence = c(mp$c.Herbicides, mp$c.Cultivation, 
-               mp$c.Cover_Crops),
-  Mat = rep(mp$c.maturity.index, 3)
-)
-
-matplot = ggplot(mp, aes(x = Treatment, y = Mat, color = Presence)) +
-  geom_boxplot(outlier.shape=NA) +
-  ylab("Fruit Maturity (CSI) Values") +
-  xlab("") +
-  theme_classic() +
-  theme(
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops        Cultivation        Herbicides") +
-  guides(fill = FALSE)+
-  theme(
-    axis.text.y = element_text(size = 6))
-
-matplot  <- matplot  + guides(color = "none")
 
 #####Skin Total Phenolics##
 
 #creating data frame to plot all together 
-skintotalphen <- data.frame(SkinD$Herbicides,SkinD$Com_Mul, SkinD$TotalPhenTrans )
+sk <- data.frame(SkinD$Herbicides,SkinD$Com_Mul,
+ SkinD$Cultivation, SkinD$Cover_Crops, SkinD$Mowing, SkinD$TotalPhenTrans, SkinD$PhenRich)
 
-skintotalphen <- data.frame(
-  Treatment = rep(c("skintotalphen$SkinD.Herbicides", "skintotalphen$SkinD.Com_Mul"), each = nrow(skintotalphen)),
-  Presence = c(skintotalphen$SkinD.Herbicides, skintotalphen$SkinD.Com_Mul),
-  TP = rep(skintotalphen$SkinD.TotalPhenTrans, 2)
+sk <- sk[-c(9), ]
+
+
+sk <- data.frame(
+  Treatment = rep(c("sk$SkinD.Herbicides", "sk$SkinD.Com_Mul", "sk$SkinD.Cultivation",
+                    "sk$SkinD.Cover_Crops", "sk$SkinD.Mowing"), each = nrow(sk)),
+  Presence = c(sk$SkinD.Herbicides, sk$SkinD.Com_Mul,sk$SkinD.Cultivation, sk$SkinD.Cover_Crops, sk$SkinD.Mowing),
+  TP = rep(sk$SkinD.TotalPhenTrans, 5),
+  PR = rep(sk$SkinD.PhenRich,5)
 )
 
-
-
-
-skinmgmt = ggplot(skintotalphen, aes(x = Treatment, y = TP, color = Presence)) +
+SKTP = ggplot(sk, aes(x = Treatment, y = TP, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
   ylab("Skin Total Phenolics (PDW)") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
-  ) +
+  )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Compost/Mulch                 Herbicides")+
-guides(fill= FALSE)+
+  xlab("")+
   theme(
-  axis.text.y = element_text(size = 6))
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
 
-skinmgmt  <- skinmgmt  + guides(color = "none")
+SKTP  <- SKTP  + guides(color = "none")
 
+
+SKPR = ggplot(sk, aes(x = Treatment, y = PR, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Skin Phenolic Richness") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )+
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("Cover Crops       Herbicides        Mowing")+
+  theme(
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
+
+SKPR  <- SKPR  + guides(color = "none")
 
 
 #####Pulp Total Phenolics##
+##creating data frame to plot all together 
+PU <- data.frame(PulpD$Herbicides,PulpD$Com_Mul,
+                 PulpD$Cultivation, PulpD$Cover_Crops, PulpD$Mowing, PulpD$TotalPhenTrans, PulpD$PhenRich)
+PU <- PU[-c(9), ]
 
-#creating data frame to plot all together 
-pulptp <- data.frame(PulpD$Cultivation,PulpD$Cover_Crops, PulpD$TotalPhenTrans )
-pulptp <- data.frame(
-  Treatment = rep(c("pulptp$PulpD.Cultivation", "pulptp$PulpD.Cover_Crops"),
-                  each = nrow(pulptp)),
-  Presence = c(pulptp$PulpD.Cultivation, pulptp$PulpD.Cover_Crops),
-  TP = rep(pulptp$PulpD.TotalPhenTrans, 2)
+PU <- data.frame(
+  Treatment = rep(c("PU$PulpD.Herbicides", "PU$PulpD.Com_Mul", "PU$PulpD.Cultivation",
+                    "PU$PulpD.Cover_Crops", "PU$PulpD.Mowing"), each = nrow(PU)),
+  Presence = c(PU$PulpD.Herbicides, PU$PulpD.Com_Mul,PU$PulpD.Cultivation, PU$PulpD.Cover_Crops, PU$PulpD.Mowing),
+  TP = rep(PU$PulpD.TotalPhenTrans, 5),
+  PR = rep(PU$PulpD.PhenRich,5)
 )
 
-ppmgmt = ggplot(pulptp, aes(x = Treatment, y = TP, color = Presence)) +
+PUTP = ggplot(PU, aes(x = Treatment, y = TP, color = Presence)) +
   geom_boxplot(outlier.shape=NA) +
   ylab("Pulp Total Phenolics (PDW)") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
-  ) +
+  )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  xlab("Cover Crops              Cultivation")+
-  guides(fill= FALSE)+
+  xlab("")+
   theme(
-    axis.text.y = element_text(size = 6))
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
+PUTP  <- PUTP  + guides(color = "none")
 
 
-ppmgmt  <- ppmgmt  + guides(color = "none")
-
-
-#Pulp Phenolic Richness
-prcm = ggplot(PulpD, aes(x = Cultivation, y = PhenRich, color = Cultivation)) +
-  geom_boxplot(outlier.shape=NA)+
+PUPR = ggplot(PU, aes(x = Treatment, y = PR, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
   ylab("Pulp Phenolic Richness") +
-  xlab("Cultivation") +
   theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
-  ) +
+  )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill= FALSE)+
+  xlab("")+
   theme(
-    axis.text.y = element_text(size = 6))
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
 
-prcm  <- prcm  + guides(color = "none")
-
+PUPR  <- PUPR  + guides(color = "none")
 
 
 #Seed Phenolic Richness
-secm = ggplot(SeedD, aes(x = Com_Mul, y = PhenRich, color = Com_Mul)) +
-  geom_boxplot(outlier.shape=NA)+
-  ylab("Seed Phenolic Richness") +
-  xlab("Compost/Mulching") +
-  theme_classic()+
+SE <- data.frame(SeedD$Herbicides,SeedD$Com_Mul,
+                 SeedD$Cultivation, SeedD$Cover_Crops, SeedD$Mowing, SeedD$TotalPhenTrans, SeedD$PhenRich)
+SE <- SE[-c(9), ]
+
+SE <- data.frame(
+  Treatment = rep(c("SE$SeedD.Herbicides", "SE$SeedD.Com_Mul", "SE$SeedD.Cultivation",
+                    "SE$SeedD.Cover_Crops", "SE$SeedD.Mowing"), each = nrow(SE)),
+  Presence = c(SE$SeedD.Herbicides, SE$SeedD.Com_Mul,SE$SeedD.Cultivation, SE$SeedD.Cover_Crops, SE$SeedD.Mowing),
+  TP = rep(SE$SeedD.TotalPhenTrans, 5),
+  PR = rep(SE$SeedD.PhenRich,5)
+)
+
+SETP = ggplot(SE, aes(x = Treatment, y = TP, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Seed Total Phenolics (PDW)") +
+  theme_classic() +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
-  ) +
+  )+
   scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
-  guides(fill= FALSE)+
+  xlab("")+
   theme(
-    axis.text.y = element_text(size = 6))
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
 
-secm  <- secm  + guides(color = "none")
+SETP  <- SETP  + guides(color = "none")
 
 
-ggarrange(sscplot,axc, matplot, fxh, skinmgmt,secm, ppmgmt, prcm
-          ,nrow = 4, ncol = 2, labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
+SEPR = ggplot(PU, aes(x = Treatment, y = PR, color = Presence)) +
+  geom_boxplot(outlier.shape=NA) +
+  ylab("Seed Phenolic Richness") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )+
+  scale_color_manual(values = c("#22a884", "#fe9f6d"), name = "Usage")+
+  xlab("")+
+  theme(
+    axis.text.y = element_text(size = 8))+
+  guides(fill = FALSE)
+
+SEPR  <- SEPR  + guides(color = "none")
+
+
+
+#create one large plot
+ggarrange(sscplot, wgtplot, firplot, SKTP, SKPR, PUTP, PUPR, SETP, SEPR
+          ,nrow = 3, ncol = 3, labels = c("A", "B", "C", "D", "E", "F", "G", "H", "F"))
 ggsave("Figure4.jpeg", width=20, height=20, units="cm", dpi=600)
 
 
