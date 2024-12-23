@@ -19,6 +19,7 @@ library(GGally)
 library(emmeans) 
 library(ggpubr) #multiplotting 
 library(viridis) #color pallete 
+library(performance) # generating r squareds 
 
 #Read Data Organization and Restructuring---------------------------------------
 #Read in Data sheets
@@ -952,9 +953,29 @@ ag3= ggplot(TreeLat, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
   scale_x_continuous(breaks = seq(34, 49, by = 3))+ 
   guides(color = "none") 
 
+ag4= ggplot(Tree_low, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Weight (g)") +
+  xlab ("Low (<42°) Latitude")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
+  scale_x_continuous(breaks = seq(34, 42, by = 2))+ 
+  guides(color = "none") 
+
+ag5= ggplot(Tree_high, aes(x=Latitude, y=avgwgt, color=orchard.type)) +
+  geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Weight (g)") +
+  xlab ("High (>42°) Latitude")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic() +  
+  scale_color_manual(values=c("#3b0f70", "#de4968"),name="Management System")+
+  scale_x_continuous(breaks = seq(44, 49, by = 2))+ 
+  guides(color = "none") 
 
 
-ggarrange(ag1, ag2, ag3, nrow = 1, ncol = 3, labels = c("A", "B", "C", "D"))
+
+ggarrange(ag1, ag2, ag3, ag4, ag5, nrow = 2, ncol = 3, labels = c("A", "B", "C", "D", "E"))
 ggsave("Figure2.jpeg", width=30, height=20, units="cm", dpi=600)
 
 
