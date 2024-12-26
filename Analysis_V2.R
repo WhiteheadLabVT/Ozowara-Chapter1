@@ -185,9 +185,6 @@ avg_hgh<- glmmTMB(avgwgt ~ orchard.type + maturity.index + (1|site.code/orchard.
 summary(avg_hgh)
 Anova(avg_hgh)
 
-## Calculate the effect size
-emmeans(avg_hgh,pairwise~orchard.type, type="response")
-
 #Q1-B: Fruit Chemistry-------------------------------------------------------------
 #binding latitude to the 359 obs data set 
 ChemLat <- left_join(d, Orchard %>% select(orchard.num, Latitude), 
@@ -1360,3 +1357,123 @@ aggregate(d.pu, caffeic_acid~lat_cat, function(x) c(M = mean(x), SE = sd(x)/sqrt
 
 
 #prctice 
+#Finding r squared values for models--------------------------------------------
+
+#for figure 2
+
+#Subsetting data into Organic and Conventional 
+TreeO <- filter(TreeLat, orchard.type == "Organic")
+TreeC <- filter(TreeLat, orchard.type == "Conventional")
+
+#Fit separate linear models
+ssco <- lm(SSC ~ Latitude, data = TreeO)
+sscc <- lm(SSC ~ Latitude, data = TreeC)
+firo <- lm(Firmness ~ Latitude, data = TreeO)
+firc <- lm(Firmness ~ Latitude, data = TreeC)
+wgto <- lm(avgwgt ~ Latitude, data = TreeO)
+wgtc <- lm(avgwgt ~ Latitude, data = TreeC)
+
+#extract R-squared 
+summary(ssco)$r.squared
+summary(sscc)$r.squared
+summary(firo)$r.squared
+summary(firc)$r.squared
+summary(wgto)$r.squared
+summary(wgtc)$r.squared
+
+#extract p values
+summary(ssco)$coefficients
+summary(sscc)$coefficients
+summary(firo)$coefficients
+summary(firc)$coefficients
+summary(wgto)$coefficients
+summary(wgtc)$coefficients
+
+#sub again for low 
+LowO <- filter(Tree_low, orchard.type == "Organic")
+LowC <- filter(Tree_low, orchard.type == "Conventional")
+
+lwo <- lm(avgwgt ~ Latitude, data = LowO)
+lwc <- lm(avgwgt ~ Latitude, data = LowC)
+
+summary(lwo)$r.squared
+summary(lwc)$r.squared
+
+summary(lwo)$coefficients
+summary(lwc)$coefficients
+
+#sub again for high 
+HighO <- filter(Tree_high, orchard.type == "Organic")
+HighC <- filter(Tree_high, orchard.type == "Conventional")
+
+hwo <- lm(avgwgt ~ Latitude, data = HighO)
+hwc <- lm(avgwgt ~ Latitude, data = HighC)
+
+summary(hwo)$r.squared
+summary(hwc)$r.squared
+
+summary(hwo)$coefficients
+summary(hwc)$coefficients
+
+view(ChemLat)
+
+
+#for figure 3#
+#Subsetting data into tissue 
+SkinR <- filter(ChemLat, Tissue == "SKIN")
+PulpR <- filter(ChemLat, Tissue == "PULP")
+SeedR <- filter(ChemLat, Tissue == "SEED")
+
+
+s1 <- lm(TotalPhenTrans ~ Latitude, data = SkinR)
+s2 <- lm(PhenRich ~ Latitude, data = SkinR)
+
+p1 <- lm(TotalPhenTrans ~ Latitude, data = PulpR)
+p2 <- lm(PhenRich ~ Latitude, data = PulpR)
+
+d1 <- lm(TotalPhenTrans ~ Latitude, data = SeedR)
+d2 <- lm(PhenRich ~ Latitude, data = SeedR)
+
+
+summary(s1)$r.squared
+summary(p1)$r.squared
+summary(d1)$r.squared
+
+summary(s1)$coefficients
+summary(p1)$coefficients
+summary(d1)$coefficients
+
+summary(s2)$r.squared
+summary(p2)$r.squared
+summary(d2)$r.squared
+
+
+summary(s2)$coefficients
+summary(p2)$coefficients
+summary(d2)$coefficients
+
+
+
+
+#messing around ----------------------------------------------------------------
+
+M <- left_join(Tree, Orchard %>% select(orchard.num, Latitude, lat_cat, AHD, GHD), 
+                     by = c("orchard.num"))
+
+M$AHD <- as.Date(M$AHD, format = "%Y%m%d")
+view(M)
+
+#SSC
+m1<- glmmTMB(SSC ~ AHD + maturity.index + (1|site.code/orchard.num), data=M)
+summary(m1)
+Anova(m1) 
+
+plot(SSC ~ AHD, data=M)
+plot(SSC ~ Latitude, data=M)
+
+m1<- glmmTMB(avgwgt ~ AHD + (1|site.code/orchard.num), data=M)
+summary(m1)
+Anova(m1) 
+
+plot(avgwgt ~ AHD, data=M)
+plot(avgwgt ~ Latitude, data=M)
