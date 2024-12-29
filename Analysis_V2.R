@@ -93,10 +93,6 @@ Tree.sum <- Tree %>%
   group_by(orchard.num) %>%
   summarise_at(c("avgwgt", "Firmness", "SSC", "maturity.index"), mean, na.rm = TRUE)
 
-#creating pest index
-Orchard <- Orchard %>%
-  mutate(Pest.Index=rowSums(across(21:38))/18)
-
 #categorical latitude data to be used for RF and pest questiosn 
 Orchard <- Orchard %>% 
   mutate(lat_cat=cut(Latitude, breaks=c(-Inf, 42, Inf), labels=c("low", "high")))
@@ -617,7 +613,7 @@ results$rotation
 head(results$x)
 
 #this plots the results of the PCAs into a two dimensional representation 
-biplot(results,choices=1:2, cex = 0.001,
+biplot(results,choices=1:2, cex = 1,
        col = c(NA, "BLACK"),
        scale = FALSE, xlabs = rep("*", 24), 
        xlab = "Principal Component 1", 
@@ -626,8 +622,27 @@ biplot(results,choices=1:2, cex = 0.001,
        cex.lab = 1.2, 
        cex.axis = 1.1, 
        cex.main = 1.5,
-       xlim = c(-2.1, 2.1), # Adjust these limits to zoom in on the x-axis
-       ylim = c(-2.1, 2.1))
+       xlim = c(-1.5, 1.5), # Adjust these limits to zoom in on the x-axis
+       ylim = c(-1.75, 1.75))
+
+###structuring figure for export###
+
+#Extract loadings
+loadings <- results$rotation[, 1:2]  # Replace 'rotation' if using a different object structure
+
+#adding jitter to arrows 
+jittered_loadings <- loadings * 2
+jittered_loadings[, 1] <- jitter(jittered_loadings[, 1], amount = 0.2)
+jittered_loadings[, 2] <- jitter(jittered_loadings[, 2], amount = 0.15)
+
+#Plot
+pca <-plot(results$x[, 1:2], type = "n", 
+     xlab = "Principal Component 1", 
+     ylab = "Principal Component 2", 
+     xlim = c(-1.7, 1.7), 
+     ylim = c(-1.7, 1.7))
+pca <- pca + arrows(0, 0, jittered_loadings[, 1], jittered_loadings[, 2], length = 0.1, col = "black")
+pca
 
 
 
@@ -685,7 +700,6 @@ summary(p1)
 plot(Firmness ~ PC1, data=pc_clim_phys)
 plot(Firmness ~ PC2, data=pc_clim_phys)
 plot(Firmness ~ PC3, data=pc_clim_phys)
-plot(Firmness ~ PC4, data=pc_clim_phys)
 
 results$rotation
 
@@ -695,7 +709,6 @@ summary(P2)
 
 plot(SSC ~ PC1, data=pc_clim_phys)
 plot(SSC ~ PC2, data=pc_clim_phys)
-plot(SSC ~ PC4, data=pc_clim_phys)
 
 results$rotation
 
@@ -703,7 +716,7 @@ results$rotation
 p3 <- glmmTMB(avgwgt ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p3)
 
-plot(avgwgt ~ PC2, data=pc_clim_phys)
+plot(avgwgt ~ PC3, data=pc_clim_phys)
 
 results$rotation
 
@@ -780,21 +793,6 @@ corrplot(cor(p_mgmt), p.mat = testRes$p, insig = 'p-value', sig.level = -1)
 corrplot(cor(p_mgmt), p.mat = testRes$p, method = 'color', diag = FALSE, type = 'upper',
          sig.level = c(0.001, 0.01, 0.05), pch.cex = 0.9,
          insig = 'label_sig', pch.col = 'grey20', order = 'AOE')
-
-
-### rootstock has 7 levels so these results shouldnt be trusted too much 
-### training system follows the same interpretation 
-
-###Cover Crops: UVI, All temps, acres, "rootstock"
-### training x orchard type 
-### vultivation x herbicides + com_mulch 
-### rootstock x uvi + all temps 
-
-
-
-
-
-
 
 
 #Q3: Which specific management practices are the most important drivers of fruit quality?----
