@@ -696,6 +696,7 @@ pc_clim_phys <- cbind(pc_clim, c)
 ###Firmness###
 p1 <- glmmTMB(Firmness ~ orchard.type+ maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p1)
+Anova(p1)
 
 plot(Firmness ~ PC1, data=pc_clim_phys)
 plot(Firmness ~ PC2, data=pc_clim_phys)
@@ -706,6 +707,7 @@ results$rotation
 ###SSC###
 P2 <- glmmTMB(SSC ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data= pc_clim_phys)
 summary(P2)
+Anova(P2)
 
 plot(SSC ~ PC1, data=pc_clim_phys)
 plot(SSC ~ PC2, data=pc_clim_phys)
@@ -715,6 +717,7 @@ results$rotation
 ###AVGWGT
 p3 <- glmmTMB(avgwgt ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + (1|site.code), data=pc_clim_phys)
 summary(p3)
+Anova(p3)
 
 plot(avgwgt ~ PC3, data=pc_clim_phys)
 
@@ -730,11 +733,13 @@ pc.sk_clim <- cbind(pc_clim, SkinD)
 pc.sk.tp <- glmmTMB(TotalPhenTrans ~ orchard.type+ maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.sk_clim, family=beta_family (link="logit"))
 summary(pc.sk.tp)
+Anova(pc.sk.tp)
 
 #PhenRich
 pc.sk.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.sk_clim)
 summary(pc.sk.pr)
+Anova(pc.sk.pr)
 
 #PULP#
 pc.pu_clim <- cbind(pc_clim, PulpD)
@@ -743,11 +748,14 @@ pc.pu_clim <- cbind(pc_clim, PulpD)
 pc.pu.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim, family=beta_family (link="logit"))
 summary(pc.pu.tp)
+Anova(pc.pu.tp)
+
 
 #PhenRich 
 pc.pu.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.pu_clim)
 summary(pc.pu.pr)
+Anova(pc.pu.pr)
 
 #SEED#
 pc.se_clim <- cbind(pc_clim, SeedD)
@@ -756,11 +764,13 @@ pc.se_clim <- cbind(pc_clim, SeedD)
 pc.se.tp <- glmmTMB(TotalPhenTrans ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 + 
                       (1|site.code), data=pc.se_clim, family=beta_family (link="logit"))
 summary(pc.se.tp)
+Anova(pc.se.tp)
 
 #PhenRich 
 pc.se.pr <- glmmTMB(PhenRich ~ orchard.type + maturity.index + PC1 + PC2 + PC3 + PC4 +
                       (1|site.code), data=pc.se_clim)
 summary(pc.se.pr)
+Anova(pc.se.pr)
 
 
 #Dummy Coded Corroplot----------------------------------------------------------
@@ -979,7 +989,7 @@ ggsave("Figure2.jpeg", width=30, height=20, units="cm", dpi=600)
 ###Q1-B Phenolic Richness by Tissue Type over Latitude 
 ctp = ggplot(ChemLat, aes(x=Latitude, y=TotalPhenTrans, color=Tissue)) +
   geom_point(size= 1,position=position_jitterdodge(jitter.width=.2))+
-  ylab ("Total Phenolics (PPW)") +
+  ylab ("Total Phenolics (PDW)") +
   xlab ("Latitude")+
   geom_smooth(method=lm ,alpha = .15,aes(fill = NULL))+
   theme_classic() +
@@ -1351,127 +1361,56 @@ aggregate(d, phloridzin~orchard.type, function(x) c(M = mean(x), SE = sd(x)/sqrt
 aggregate(d.pu, caffeic_acid~lat_cat, function(x) c(M = mean(x), SE = sd(x)/sqrt(length(x))))
 
 
+#PCA regression plots-----------------------------------------------------------
+c1 = ggplot(pc_clim_phys, aes(x=PC1, y=Firmness, color = PC1)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness (N)") +
+  xlab ("PC1")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
+
+c2 = ggplot(pc_clim_phys, aes(x=PC2, y=Firmness, color = PC1)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness (N)") +
+  xlab ("PC2")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
+
+c3 = ggplot(pc_clim_phys, aes(x=PC3, y=Firmness, color = PC1)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Firmness (N)") +
+  xlab ("PC3")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
+
+c4 = ggplot(pc_clim_phys, aes(x=PC3, y=avgwgt, color = PC3)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Average Weight (g)") +
+  xlab ("PC3")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
+
+c6 = ggplot(pc_clim_phys, aes(x=PC1, y=SSC, color = PC1)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Soluble Sugar Content (°Bx)") +
+  xlab ("PC1")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
+
+c7= ggplot(pc_clim_phys, aes(x=PC2, y=SSC, color = PC2)) +
+  geom_point(size= 1, position=position_jitterdodge(jitter.width=.2))+
+  ylab ("Soluble Sugar Content (°Bx)") +
+  xlab ("PC2")+
+  geom_smooth(method=glm ,alpha = .15,aes(fill = NULL))+
+  theme_classic()+ 
+  guides(color = "none") 
 
 
+ggarrange(c1, c2, c3, c4, c6, c7, nrow = 3, ncol = 2, labels = c("A", "B", "C", "D", "E", "F"))
+ggsave("SFig4.jpeg", width=30, height=30, units="cm", dpi=600)
 
-#prctice 
-#Finding r squared values for models--------------------------------------------
-
-#for figure 2
-
-#Subsetting data into Organic and Conventional 
-TreeO <- filter(TreeLat, orchard.type == "Organic")
-TreeC <- filter(TreeLat, orchard.type == "Conventional")
-
-#Fit separate linear models
-ssco <- lm(SSC ~ Latitude, data = TreeO)
-sscc <- lm(SSC ~ Latitude, data = TreeC)
-firo <- lm(Firmness ~ Latitude, data = TreeO)
-firc <- lm(Firmness ~ Latitude, data = TreeC)
-wgto <- lm(avgwgt ~ Latitude, data = TreeO)
-wgtc <- lm(avgwgt ~ Latitude, data = TreeC)
-
-#extract R-squared 
-summary(ssco)$r.squared
-summary(sscc)$r.squared
-summary(firo)$r.squared
-summary(firc)$r.squared
-summary(wgto)$r.squared
-summary(wgtc)$r.squared
-
-#extract p values
-summary(ssco)$coefficients
-summary(sscc)$coefficients
-summary(firo)$coefficients
-summary(firc)$coefficients
-summary(wgto)$coefficients
-summary(wgtc)$coefficients
-
-#sub again for low 
-LowO <- filter(Tree_low, orchard.type == "Organic")
-LowC <- filter(Tree_low, orchard.type == "Conventional")
-
-lwo <- lm(avgwgt ~ Latitude, data = LowO)
-lwc <- lm(avgwgt ~ Latitude, data = LowC)
-
-summary(lwo)$r.squared
-summary(lwc)$r.squared
-
-summary(lwo)$coefficients
-summary(lwc)$coefficients
-
-#sub again for high 
-HighO <- filter(Tree_high, orchard.type == "Organic")
-HighC <- filter(Tree_high, orchard.type == "Conventional")
-
-hwo <- lm(avgwgt ~ Latitude, data = HighO)
-hwc <- lm(avgwgt ~ Latitude, data = HighC)
-
-summary(hwo)$r.squared
-summary(hwc)$r.squared
-
-summary(hwo)$coefficients
-summary(hwc)$coefficients
-
-view(ChemLat)
-
-
-#for figure 3#
-#Subsetting data into tissue 
-SkinR <- filter(ChemLat, Tissue == "SKIN")
-PulpR <- filter(ChemLat, Tissue == "PULP")
-SeedR <- filter(ChemLat, Tissue == "SEED")
-
-
-s1 <- lm(TotalPhenTrans ~ Latitude, data = SkinR)
-s2 <- lm(PhenRich ~ Latitude, data = SkinR)
-
-p1 <- lm(TotalPhenTrans ~ Latitude, data = PulpR)
-p2 <- lm(PhenRich ~ Latitude, data = PulpR)
-
-d1 <- lm(TotalPhenTrans ~ Latitude, data = SeedR)
-d2 <- lm(PhenRich ~ Latitude, data = SeedR)
-
-
-summary(s1)$r.squared
-summary(p1)$r.squared
-summary(d1)$r.squared
-
-summary(s1)$coefficients
-summary(p1)$coefficients
-summary(d1)$coefficients
-
-summary(s2)$r.squared
-summary(p2)$r.squared
-summary(d2)$r.squared
-
-
-summary(s2)$coefficients
-summary(p2)$coefficients
-summary(d2)$coefficients
-
-
-
-
-#messing around ----------------------------------------------------------------
-
-M <- left_join(Tree, Orchard %>% select(orchard.num, Latitude, lat_cat, AHD, GHD), 
-                     by = c("orchard.num"))
-
-M$AHD <- as.Date(M$AHD, format = "%Y%m%d")
-view(M)
-
-#SSC
-m1<- glmmTMB(SSC ~ AHD + maturity.index + (1|site.code/orchard.num), data=M)
-summary(m1)
-Anova(m1) 
-
-plot(SSC ~ AHD, data=M)
-plot(SSC ~ Latitude, data=M)
-
-m1<- glmmTMB(avgwgt ~ AHD + (1|site.code/orchard.num), data=M)
-summary(m1)
-Anova(m1) 
-
-plot(avgwgt ~ AHD, data=M)
-plot(avgwgt ~ Latitude, data=M)
